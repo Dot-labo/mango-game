@@ -776,7 +776,14 @@ function onWrong(i, answer) {
     setTimeout(endGame, 1100);
   } else {
     setTimeout(() => {
-      jumpTo(sCX, sTY, () => { locked = false; });
+      jumpTo(sCX, sTY, () => {
+        platEls.forEach(p => {
+          p.style.pointerEvents = 'auto';
+          p.classList.remove('correct', 'wrong');
+        });
+        pfEls.forEach(pf => { pf.style.filter = ''; });
+        locked = false;
+      });
     }, 700);
   }
 }
