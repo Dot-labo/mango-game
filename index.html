@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SAKURA KIDS – Monster Learning World</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: #080818;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  overflow-x: hidden;
+  min-height: 100vh;
+  user-select: none;
+}
+
+/* ── CANVAS BG ─────────────────────────────────────── */
+#bgCanvas {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── LAYOUT ────────────────────────────────────────── */
+#app {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  padding-bottom: 60px;
+}
+
+/* ── HEADER ────────────────────────────────────────── */
+header {
+  width: 100%;
+  max-width: 1100px;
+  padding: 36px 32px 0;
+}
+
+.hero-inner {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 48px;
+}
+
+/* Left: branding */
+.hero-text {
+  flex: 1;
+  max-width: 500px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 24px;
+}
+
+.school-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, rgba(255,120,170,0.18), rgba(255,60,130,0.08));
+  border: 1px solid rgba(255,140,180,0.35);
+  border-radius: 30px;
+  padding: 8px 20px;
+  width: fit-content;
+}
+.school-badge-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: #ff7eb3;
+  box-shadow: 0 0 8px #ff7eb3;
+  animation: dotGlow 2s ease-in-out infinite;
+}
+@keyframes dotGlow {
+  0%,100% { opacity: 1; }
+  50%      { opacity: 0.4; }
+}
+.school-badge-text {
+  font-size: 11px;
+  font-weight: 800;
+  color: #ff9cc0;
+  text-transform: uppercase;
+  letter-spacing: 3.5px;
+}
+
+.school-name {
+  font-size: clamp(36px, 6vw, 64px);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 3px;
+  background: linear-gradient(135deg, #ff6699 0%, #ffb3d0 50%, #ff4488 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 2px 16px rgba(255,80,140,0.4));
+}
+
+.school-sakura-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.sakura-petal {
+  font-size: 18px;
+  display: inline-block;
+  animation: petalSpin 4s ease-in-out infinite;
+}
+.sakura-petal:nth-child(1) { animation-delay: 0s; }
+.sakura-petal:nth-child(2) { animation-delay: 0.6s; }
+.sakura-petal:nth-child(3) { animation-delay: 1.2s; }
+@keyframes petalSpin {
+  0%,100% { transform: rotate(0deg) scale(1); opacity: 0.8; }
+  50%      { transform: rotate(20deg) scale(1.2); opacity: 1; }
+}
+
+.site-sub {
+  font-size: clamp(14px, 2vw, 20px);
+  font-weight: 700;
+  color: rgba(255,255,255,0.45);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.site-tagline {
+  font-size: clamp(14px, 1.8vw, 17px);
+  color: #7090c0;
+  letter-spacing: 2px;
+  line-height: 1.6;
+}
+
+/* Progress bar strip */
+.xp-strip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+.xp-label { font-size: 12px; color: #a0c8ff; white-space: nowrap; }
+.xp-bar-wrap {
+  flex: 1;
+  height: 7px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.xp-bar-fill {
+  width: 12%;
+  height: 100%;
+  background: linear-gradient(90deg, #ff7eb3, #ffcd38);
+  border-radius: 4px;
+  box-shadow: 0 0 8px rgba(255,126,179,0.5);
+}
+.xp-stars { font-size: 13px; color: #ffcd38; white-space: nowrap; }
+
+/* Right: mascot */
+.hero-mascot {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.mascot-name-tag {
+  background: rgba(255,126,179,0.12);
+  border: 1px solid rgba(255,126,179,0.25);
+  border-radius: 20px;
+  padding: 4px 14px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #ff9cc0;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+#sakunyan-svg {
+  width: 210px;
+  height: auto;
+  animation: mascotBob 3s ease-in-out infinite;
+  filter: drop-shadow(0 10px 28px rgba(80,160,255,0.25));
+}
+@keyframes mascotBob {
+  0%,100% { transform: translateY(0); }
+  50%      { transform: translateY(-14px); }
+}
+
+@media (max-width: 700px) {
+  .hero-inner {
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+  .hero-text {
+    align-items: center;
+    text-align: center;
+    padding-bottom: 0;
+  }
+  .school-badge { margin: 0 auto; }
+  #sakunyan-svg { width: 160px; }
+  .hero-mascot { order: -1; }
+}
+
+/* Section label */
+.section-label {
+  width: 100%;
+  max-width: 1100px;
+  padding: 32px 32px 16px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #5070a0;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+}
+
+/* ── GRID ──────────────────────────────────────────── */
+.games-grid {
+  width: 100%;
+  max-width: 1100px;
+  padding: 0 24px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 22px;
+}
+
+/* ── CARD BASE ─────────────────────────────────────── */
+.game-card {
+  border-radius: 24px;
+  overflow: hidden;
+  position: relative;
+  cursor: default;
+  transition: transform 0.25s cubic-bezier(.175,.885,.32,1.275),
+              box-shadow 0.25s;
+}
+
+/* ── PLAYABLE CARD ─────────────────────────────────── */
+.game-card.playable {
+  cursor: pointer;
+}
+.game-card.playable:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+}
+.game-card.playable:active {
+  transform: translateY(-3px) scale(0.99);
+}
+
+/* ── CARD INNER ────────────────────────────────────── */
+.card-inner {
+  position: relative;
+  padding: 28px 22px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  min-height: 240px;
+}
+
+/* ── CARD BACKGROUNDS per theme ───────────────────── */
+.card-bg-space {
+  background: linear-gradient(145deg, #1a0a3a 0%, #0d1a4a 60%, #0a2040 100%);
+  border: 1px solid rgba(130,80,255,0.3);
+  box-shadow: 0 8px 32px rgba(80,40,180,0.25);
+}
+.card-bg-ocean {
+  background: linear-gradient(145deg, #032240 0%, #054060 60%, #023040 100%);
+  border: 1px solid rgba(0,150,255,0.2);
+  box-shadow: 0 8px 32px rgba(0,80,160,0.25);
+}
+.card-bg-forest {
+  background: linear-gradient(145deg, #0a2010 0%, #1a3a10 60%, #0a2818 100%);
+  border: 1px solid rgba(50,200,80,0.2);
+  box-shadow: 0 8px 32px rgba(20,120,40,0.25);
+}
+.card-bg-candy {
+  background: linear-gradient(145deg, #3a0a20 0%, #4a1030 60%, #380820 100%);
+  border: 1px solid rgba(255,80,160,0.2);
+  box-shadow: 0 8px 32px rgba(180,40,100,0.25);
+}
+.card-bg-sky {
+  background: linear-gradient(145deg, #0a1a30 0%, #0a2a4a 60%, #082038 100%);
+  border: 1px solid rgba(80,200,255,0.2);
+  box-shadow: 0 8px 32px rgba(20,100,180,0.25);
+}
+.card-bg-fire {
+  background: linear-gradient(145deg, #2a0a00 0%, #3a1400 60%, #281000 100%);
+  border: 1px solid rgba(255,120,20,0.2);
+  box-shadow: 0 8px 32px rgba(180,60,0,0.25);
+}
+
+/* ── COMING SOON OVERLAY ───────────────────────────── */
+.card-coming-soon {
+  filter: saturate(0.25) brightness(0.55);
+}
+.coming-soon-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: rgba(0,0,0,0.18);
+  border-radius: 24px;
+  z-index: 10;
+  pointer-events: none;
+}
+.wip-badge {
+  background: rgba(30,30,50,0.92);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 30px;
+  padding: 8px 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  backdrop-filter: blur(6px);
+}
+.wip-icon { font-size: 22px; }
+.wip-text {
+  font-size: 13px;
+  font-weight: 800;
+  color: #f0c060;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+/* ── CARD CONTENT ──────────────────────────────────── */
+.card-emoji {
+  font-size: 64px;
+  line-height: 1;
+  filter: drop-shadow(0 4px 12px rgba(0,0,0,0.4));
+  transition: transform 0.3s;
+}
+.game-card.playable:hover .card-emoji {
+  transform: scale(1.15) rotate(-5deg);
+}
+
+.card-title {
+  font-size: 18px;
+  font-weight: 900;
+  color: #fff;
+  text-align: center;
+  letter-spacing: 0.5px;
+  line-height: 1.2;
+}
+
+.card-desc {
+  font-size: 13px;
+  color: rgba(255,255,255,0.5);
+  text-align: center;
+  line-height: 1.5;
+}
+
+.card-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 2px;
+}
+.tag {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 20px;
+  background: rgba(255,255,255,0.07);
+  color: rgba(255,255,255,0.45);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+/* ── PLAY BUTTON ───────────────────────────────────── */
+.play-btn {
+  margin-top: 6px;
+  padding: 11px 32px;
+  border: none;
+  border-radius: 30px;
+  font-size: 15px;
+  font-weight: 800;
+  color: #fff;
+  background: linear-gradient(135deg, #ff6fd8, #ff9a3c);
+  box-shadow: 0 4px 20px rgba(255,100,180,0.45);
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: transform 0.15s, box-shadow 0.15s;
+  position: relative;
+  overflow: hidden;
+}
+.play-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,0.15);
+  transform: translateX(-100%);
+  transition: transform 0.3s;
+}
+.game-card.playable:hover .play-btn::after {
+  transform: translateX(100%);
+}
+.play-btn:hover  { transform: scale(1.05); box-shadow: 0 6px 28px rgba(255,100,180,0.6); }
+.play-btn:active { transform: scale(0.97); }
+
+/* Pulsing ring on playable card */
+.play-ring {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #4fffb0;
+  box-shadow: 0 0 0 0 rgba(79,255,176,0.5);
+  animation: ringPulse 2s infinite;
+}
+@keyframes ringPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(79,255,176,0.6); }
+  70%  { box-shadow: 0 0 0 10px rgba(79,255,176,0); }
+  100% { box-shadow: 0 0 0 0 rgba(79,255,176,0); }
+}
+.play-ring-label {
+  position: absolute;
+  top: 10px;
+  right: 32px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #4fffb0;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  opacity: 0.9;
+}
+
+/* ── STREAK BANNER ─────────────────────────────────── */
+.streak-banner {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 24px;
+  padding: 14px 28px;
+  background: linear-gradient(135deg, rgba(255,205,56,0.1), rgba(255,100,180,0.08));
+  border: 1px solid rgba(255,205,56,0.18);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 32px;
+}
+.streak-icon { font-size: 28px; }
+.streak-text { color: #f0d080; font-size: 14px; font-weight: 600; line-height: 1.4; }
+.streak-text strong { color: #ffcd38; font-size: 16px; }
+
+/* ── FOOTER ────────────────────────────────────────── */
+footer {
+  margin-top: 48px;
+  color: #304060;
+  font-size: 13px;
+  letter-spacing: 1px;
+  text-align: center;
+  padding: 0 20px;
+}
+
+/* ── HOVER SHINE ───────────────────────────────────── */
+.game-card.playable::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 24px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+</style>
+</head>
+<body>
+<canvas id="bgCanvas"></canvas>
+
+<div id="app">
+
+  <!-- HEADER -->
+  <header>
+    <div class="hero-inner">
+
+      <!-- LEFT: branding -->
+      <div class="hero-text">
+        <div class="school-badge">
+          <span class="school-badge-dot"></span>
+          <span class="school-badge-text">Official Learning Portal</span>
+        </div>
+
+        <div class="school-name">SAKURA<br>KIDS</div>
+
+        <div class="school-sakura-row">
+          <span class="sakura-petal">🌸</span>
+          <span class="sakura-petal">🌸</span>
+          <span class="sakura-petal">🌸</span>
+        </div>
+
+        <div class="site-sub">Monster Learning World</div>
+        <div class="site-tagline">
+          学んで・遊んで・育てよう！<br>
+          <span style="color:#5070a0;font-size:0.85em;letter-spacing:1px;">Learn · Play · Grow</span>
+        </div>
+
+        <div class="xp-strip">
+          <span class="xp-label">⭐ 0 XP</span>
+          <div class="xp-bar-wrap"><div class="xp-bar-fill"></div></div>
+          <span class="xp-stars">Lv.1</span>
+        </div>
+      </div>
+
+      <!-- RIGHT: Sakunyan mascot -->
+      <div class="hero-mascot">
+        <svg id="sakunyan-svg" viewBox="0 0 300 480" xmlns="http://www.w3.org/2000/svg">
+
+          <!-- !! Exclamation mark -->
+          <rect x="143" y="6" width="14" height="40" rx="5" fill="#cc3515"/>
+          <circle cx="150" cy="55" r="8" fill="#cc3515"/>
+
+          <!-- Ears (blue) -->
+          <polygon points="52,124 78,46 114,102" fill="#3d82cc"/>
+          <polygon points="186,102 222,46 248,124" fill="#3d82cc"/>
+          <!-- Ear inner (pink) -->
+          <polygon points="66,117 82,64 106,102" fill="#ff9ab0"/>
+          <polygon points="194,102 218,64 234,117" fill="#ff9ab0"/>
+
+          <!-- Head octagon (green) -->
+          <polygon points="84,98 216,98 248,130 248,212 216,242 84,242 52,212 52,130" fill="#5cb85c"/>
+          <!-- Head subtle shading -->
+          <polygon points="84,98 216,98 248,130 232,130 200,98" fill="rgba(255,255,255,0.08)"/>
+
+          <!-- Yellow bow (top center of head) -->
+          <ellipse cx="121" cy="95" rx="24" ry="14" transform="rotate(-14,121,95)" fill="#f5d020"/>
+          <ellipse cx="179" cy="95" rx="24" ry="14" transform="rotate(14,179,95)" fill="#f5d020"/>
+          <circle cx="150" cy="95" r="11" fill="#f5d020"/>
+          <circle cx="150" cy="95" r="5"  fill="#e8c000"/>
+          <!-- Bow highlight -->
+          <ellipse cx="117" cy="91" rx="10" ry="5" transform="rotate(-14,117,91)" fill="rgba(255,255,255,0.3)"/>
+          <ellipse cx="183" cy="91" rx="10" ry="5" transform="rotate(14,183,91)"  fill="rgba(255,255,255,0.3)"/>
+
+          <!-- Eyebrow marks (orange-red rectangles) -->
+          <rect x="61"  y="115" width="32" height="12" rx="4" fill="#d04020"/>
+          <rect x="207" y="115" width="32" height="12" rx="4" fill="#d04020"/>
+
+          <!-- Eyes (white circles) -->
+          <circle cx="108" cy="158" r="26" fill="white"/>
+          <circle cx="192" cy="158" r="26" fill="white"/>
+          <!-- Pupils -->
+          <circle cx="110" cy="160" r="14" fill="#1a1a1a"/>
+          <circle cx="194" cy="160" r="14" fill="#1a1a1a"/>
+          <!-- Eye shine -->
+          <circle cx="103" cy="153" r="6" fill="white"/>
+          <circle cx="187" cy="153" r="6" fill="white"/>
+          <!-- Small shine -->
+          <circle cx="116" cy="165" r="3" fill="rgba(255,255,255,0.5)"/>
+          <circle cx="200" cy="165" r="3" fill="rgba(255,255,255,0.5)"/>
+
+          <!-- Muzzle (blue) -->
+          <ellipse cx="150" cy="204" rx="39" ry="28" fill="#3d82cc"/>
+          <!-- Muzzle highlight -->
+          <ellipse cx="150" cy="196" rx="24" ry="9"  fill="rgba(255,255,255,0.12)"/>
+
+          <!-- Nose (black) -->
+          <polygon points="146,196 154,196 150,204" fill="#111"/>
+
+          <!-- Mouth -->
+          <path d="M133,210 Q141,222 150,218 Q159,222 167,210"
+                stroke="#e050a0" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+
+          <!-- Whisker marks (purple) left -->
+          <rect x="56"  y="193" width="32" height="7" rx="3.5" fill="#6040a8"/>
+          <rect x="56"  y="205" width="32" height="7" rx="3.5" fill="#6040a8"/>
+          <!-- Whisker marks (purple) right -->
+          <rect x="212" y="193" width="32" height="7" rx="3.5" fill="#6040a8"/>
+          <rect x="212" y="205" width="32" height="7" rx="3.5" fill="#6040a8"/>
+
+          <!-- ─── BODY ─── -->
+
+          <!-- Left arm (yellow) — book side, going down-left -->
+          <path d="M97,272 Q70,278 50,302" stroke="#f5d020" stroke-width="24"
+                stroke-linecap="round" fill="none"/>
+          <circle cx="48" cy="306" r="15" fill="#f5d020"/>
+
+          <!-- Right arm (yellow) — pencil side, raised -->
+          <path d="M203,272 Q228,256 246,234" stroke="#f5d020" stroke-width="24"
+                stroke-linecap="round" fill="none"/>
+          <circle cx="249" cy="230" r="15" fill="#f5d020"/>
+
+          <!-- Body / apron (blue) -->
+          <rect x="96" y="240" width="108" height="136" rx="14" fill="#3d82cc"/>
+          <!-- Body shading -->
+          <rect x="96" y="240" width="108" height="30" rx="14" fill="rgba(255,255,255,0.06)"/>
+
+          <!-- Purple bib (chest) -->
+          <path d="M96,240 Q150,240 204,240 L192,290 Q150,312 108,290 Z" fill="#6040a8"/>
+          <!-- Bib highlight -->
+          <path d="M110,244 Q150,244 190,244 L185,258 Q150,264 115,258 Z" fill="rgba(255,255,255,0.08)"/>
+
+          <!-- Pink bow tie -->
+          <path d="M126,270 L148,283 L126,296" fill="#d040a0" stroke="#b02880" stroke-width="1"/>
+          <path d="M174,270 L152,283 L174,296" fill="#d040a0" stroke="#b02880" stroke-width="1"/>
+          <circle cx="150" cy="283" r="9" fill="#d040a0"/>
+          <circle cx="150" cy="283" r="4" fill="#f070c0"/>
+
+          <!-- Pocket (ABC) -->
+          <rect x="114" y="318" width="72" height="50" rx="7"
+                fill="#2560a8" stroke="#1040a0" stroke-width="1.5"/>
+          <text x="122" y="342" font-family="Arial Black, Arial, sans-serif"
+                font-size="16" font-weight="900" fill="#f5d020">A</text>
+          <text x="144" y="342" font-family="Arial Black, Arial, sans-serif"
+                font-size="16" font-weight="900" fill="#5cb85c">B</text>
+          <text x="132" y="360" font-family="Arial Black, Arial, sans-serif"
+                font-size="16" font-weight="900" fill="#e050a0">C</text>
+          <!-- Gear icon -->
+          <circle cx="168" cy="336" r="9"  fill="#909090"/>
+          <circle cx="168" cy="336" r="4"  fill="#505050"/>
+          <rect x="166" y="326" width="4" height="4" rx="1" fill="#909090"/>
+          <rect x="166" y="342" width="4" height="4" rx="1" fill="#909090"/>
+          <rect x="158" y="334" width="4" height="4" rx="1" fill="#909090"/>
+          <rect x="174" y="334" width="4" height="4" rx="1" fill="#909090"/>
+
+          <!-- Open book (in left hand) -->
+          <rect x="16" y="292" width="46" height="36" rx="3" fill="#7a4820"/>
+          <line x1="21" y1="292" x2="21" y2="328" stroke="#4a2a10" stroke-width="4"/>
+          <rect x="21" y="292" width="41" height="36" rx="1" fill="#ede0c4"/>
+          <line x1="41" y1="294" x2="41" y2="326" stroke="#c8b890" stroke-width="1.5"/>
+          <!-- Book lines -->
+          <line x1="25" y1="302" x2="39" y2="302" stroke="#b0a070" stroke-width="1"/>
+          <line x1="25" y1="308" x2="39" y2="308" stroke="#b0a070" stroke-width="1"/>
+          <line x1="25" y1="314" x2="39" y2="314" stroke="#b0a070" stroke-width="1"/>
+          <line x1="43" y1="302" x2="57" y2="302" stroke="#b0a070" stroke-width="1"/>
+          <line x1="43" y1="308" x2="57" y2="308" stroke="#b0a070" stroke-width="1"/>
+
+          <!-- Pencil (in right hand, rotated) -->
+          <g transform="rotate(-28, 254, 215)">
+            <rect x="248" y="178" width="11" height="48" rx="2"
+                  fill="#f5d020" stroke="#d0b000" stroke-width="1"/>
+            <rect x="248" y="178" width="4"  height="48" fill="rgba(255,255,255,0.15)"/>
+            <rect x="248" y="220" width="11" height="9"  fill="#c8a080"/>
+            <polygon points="248,229 259,229 253.5,244" fill="#ffccaa"/>
+            <!-- Pencil tip -->
+            <line x1="253.5" y1="238" x2="253.5" y2="244"
+                  stroke="#555" stroke-width="1.5"/>
+          </g>
+
+          <!-- Legs (green) -->
+          <rect x="108" y="370" width="36" height="70" rx="17" fill="#5cb85c"/>
+          <rect x="156" y="370" width="36" height="70" rx="17" fill="#5cb85c"/>
+          <!-- Leg highlight -->
+          <rect x="112" y="374" width="10" height="30" rx="5" fill="rgba(255,255,255,0.12)"/>
+          <rect x="160" y="374" width="10" height="30" rx="5" fill="rgba(255,255,255,0.12)"/>
+
+          <!-- Feet (dark green) -->
+          <ellipse cx="126" cy="440" rx="25" ry="11" fill="#3a9040"/>
+          <ellipse cx="174" cy="440" rx="25" ry="11" fill="#3a9040"/>
+
+        </svg>
+        <div class="mascot-name-tag">Sakunyan</div>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- STREAK BANNER -->
+  <div class="streak-banner" style="width:calc(100% - 48px);max-width:1100px;">
+    <span class="streak-icon">🔥</span>
+    <div class="streak-text">
+      <strong>Start your learning streak!</strong><br>
+      Play a game today and begin your adventure.
+    </div>
+  </div>
+
+  <!-- SECTION: READING & PHONICS -->
+  <div class="section-label">📖 Reading &amp; Phonics</div>
+  <div class="games-grid">
+
+    <!-- PLAYABLE: Star Phonics Adventure -->
+    <div class="game-card playable card-bg-space" onclick="location.href='phonics.html'">
+      <div class="play-ring"></div>
+      <div class="play-ring-label">PLAY</div>
+      <div class="card-inner">
+        <div class="card-emoji">👾</div>
+        <div class="card-title">Star Phonics<br>Adventure</div>
+        <div class="card-desc">Match letters to their sounds in a space adventure!</div>
+        <div class="card-tags">
+          <span class="tag">Phonics</span>
+          <span class="tag">Letters</span>
+          <span class="tag">Ages 3–6</span>
+        </div>
+        <button class="play-btn">▶ Play Now!</button>
+      </div>
+    </div>
+
+    <!-- COMING SOON: Super Jumper -->
+    <div class="game-card card-bg-candy">
+      <div class="coming-soon-overlay">
+        <div class="wip-badge">
+          <span class="wip-icon">🚧</span>
+          <span class="wip-text">Coming Soon</span>
+        </div>
+      </div>
+      <div class="card-inner card-coming-soon">
+        <div class="card-emoji">🦘</div>
+        <div class="card-title">Super Jumper</div>
+        <div class="card-desc">Pick the right spelling and jump to the platform!</div>
+        <div class="card-tags">
+          <span class="tag">Spelling</span>
+          <span class="tag">CVC Words</span>
+          <span class="tag">Ages 4–7</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- COMING SOON: Rescue the Bear -->
+    <div class="game-card card-bg-forest">
+      <div class="coming-soon-overlay">
+        <div class="wip-badge">
+          <span class="wip-icon">🚧</span>
+          <span class="wip-text">Coming Soon</span>
+        </div>
+      </div>
+      <div class="card-inner card-coming-soon">
+        <div class="card-emoji">🐻</div>
+        <div class="card-title">Rescue the Bear</div>
+        <div class="card-desc">Break words into sounds to free the trapped bear!</div>
+        <div class="card-tags">
+          <span class="tag">Segmenting</span>
+          <span class="tag">Blending</span>
+          <span class="tag">Ages 4–7</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- COMING SOON: Reading for Fun -->
+    <div class="game-card card-bg-sky">
+      <div class="coming-soon-overlay">
+        <div class="wip-badge">
+          <span class="wip-icon">🚧</span>
+          <span class="wip-text">Coming Soon</span>
+        </div>
+      </div>
+      <div class="card-inner card-coming-soon">
+        <div class="card-emoji">📚</div>
+        <div class="card-title">Reading for Fun</div>
+        <div class="card-desc">Read stories and build your own library!</div>
+        <div class="card-tags">
+          <span class="tag">Reading</span>
+          <span class="tag">Stories</span>
+          <span class="tag">Ages 5–8</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- SECTION: NUMBERS & MATH -->
+  <div class="section-label">🔢 Numbers &amp; Math</div>
+  <div class="games-grid">
+
+    <!-- COMING SOON: Number Skills -->
+    <div class="game-card card-bg-ocean">
+      <div class="coming-soon-overlay">
+        <div class="wip-badge">
+          <span class="wip-icon">🚧</span>
+          <span class="wip-text">Coming Soon</span>
+        </div>
+      </div>
+      <div class="card-inner card-coming-soon">
+        <div class="card-emoji">🔢</div>
+        <div class="card-title">Number Skills</div>
+        <div class="card-desc">Count, add, and discover numbers through play!</div>
+        <div class="card-tags">
+          <span class="tag">Counting</span>
+          <span class="tag">Addition</span>
+          <span class="tag">Ages 3–6</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- COMING SOON: Shape World -->
+    <div class="game-card card-bg-fire">
+      <div class="coming-soon-overlay">
+        <div class="wip-badge">
+          <span class="wip-icon">🚧</span>
+          <span class="wip-text">Coming Soon</span>
+        </div>
+      </div>
+      <div class="card-inner card-coming-soon">
+        <div class="card-emoji">🔷</div>
+        <div class="card-title">Shape World</div>
+        <div class="card-desc">Explore colors and shapes in a magical world!</div>
+        <div class="card-tags">
+          <span class="tag">Shapes</span>
+          <span class="tag">Colors</span>
+          <span class="tag">Ages 3–5</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- SECTION: LIFE SKILLS -->
+  <div class="section-label">🌱 Life Skills</div>
+  <div class="games-grid">
+
+    <!-- COMING SOON: Adventurous Eating -->
+    <div class="game-card card-bg-forest">
+      <div class="coming-soon-overlay">
+        <div class="wip-badge">
+          <span class="wip-icon">🚧</span>
+          <span class="wip-text">Coming Soon</span>
+        </div>
+      </div>
+      <div class="card-inner card-coming-soon">
+        <div class="card-emoji">🥕</div>
+        <div class="card-title">Adventurous Eating</div>
+        <div class="card-desc">Discover yummy foods and healthy eating habits!</div>
+        <div class="card-tags">
+          <span class="tag">Food</span>
+          <span class="tag">Health</span>
+          <span class="tag">Ages 3–6</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>🌸 SAKURA KIDS · Monster Learning World · Ages 3–8</footer>
+
+</div>
+
+<script>
+// ─── ANIMATED STAR BACKGROUND ──────────────────────────
+const canvas = document.getElementById('bgCanvas');
+const ctx    = canvas.getContext('2d');
+let stars = [], nebulas = [];
+
+function resize() {
+  canvas.width  = window.innerWidth;
+  canvas.height = document.documentElement.scrollHeight;
+  initStars();
+}
+
+function initStars() {
+  stars = [];
+  const N = Math.floor((canvas.width * canvas.height) / 5000);
+  for (let i = 0; i < N; i++) {
+    stars.push({
+      x:  Math.random() * canvas.width,
+      y:  Math.random() * canvas.height,
+      r:  Math.random() * 1.6 + 0.2,
+      a:  Math.random(),
+      da: (Math.random() - 0.5) * 0.007,
+      color: ['#ffffff','#a8d0ff','#ffd8a0','#d0a8ff'][Math.floor(Math.random()*4)]
+    });
+  }
+  nebulas = [];
+  const cols = ['rgba(80,20,160,', 'rgba(20,60,160,', 'rgba(160,20,80,', 'rgba(20,120,80,'];
+  for (let i = 0; i < 6; i++) {
+    nebulas.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      r: 120 + Math.random() * 200,
+      color: cols[Math.floor(Math.random()*cols.length)],
+      a: 0.04 + Math.random() * 0.06
+    });
+  }
+}
+
+function drawBg() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Deep space base
+  ctx.fillStyle = '#06060f';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Nebulas
+  nebulas.forEach(n => {
+    const g = ctx.createRadialGradient(n.x, n.y, 0, n.x, n.y, n.r);
+    g.addColorStop(0, n.color + n.a + ')');
+    g.addColorStop(1, n.color + '0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(n.x, n.y, n.r, 0, Math.PI*2);
+    ctx.fill();
+  });
+
+  // Stars
+  stars.forEach(s => {
+    s.a += s.da;
+    if (s.a > 1) { s.a = 1; s.da = -Math.abs(s.da); }
+    if (s.a < 0) { s.a = 0; s.da =  Math.abs(s.da); }
+    ctx.globalAlpha = s.a;
+    ctx.fillStyle = s.color;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+    ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+  requestAnimationFrame(drawBg);
+}
+
+// Floating sakura petals
+const PETAL_HTML = '🌸';
+function spawnPetal() {
+  const p = document.createElement('div');
+  p.textContent = PETAL_HTML;
+  const size = 12 + Math.random() * 14;
+  const startX = Math.random() * 100;
+  const dur = 8 + Math.random() * 8;
+  const delay = Math.random() * 6;
+  const drift = (Math.random() - 0.5) * 120;
+  p.style.cssText = `
+    position:fixed; top:-40px; left:${startX}vw; font-size:${size}px;
+    opacity:0; pointer-events:none; z-index:0;
+    animation: petalFall ${dur}s ${delay}s ease-in forwards;
+    --drift: ${drift}px;
+  `;
+  document.body.appendChild(p);
+  setTimeout(() => p.remove(), (dur + delay) * 1000);
+}
+const petalStyle = document.createElement('style');
+petalStyle.textContent = `
+  @keyframes petalFall {
+    0%   { transform: translateY(0) translateX(0) rotate(0deg);   opacity: 0; }
+    10%  { opacity: 0.55; }
+    90%  { opacity: 0.3; }
+    100% { transform: translateY(110vh) translateX(var(--drift)) rotate(360deg); opacity: 0; }
+  }
+`;
+document.head.appendChild(petalStyle);
+setInterval(spawnPetal, 1800);
+spawnPetal(); spawnPetal(); spawnPetal();
+
+window.addEventListener('resize', resize);
+resize();
+drawBg();
+
+// Resize canvas on scroll (for long pages)
+window.addEventListener('scroll', () => {
+  const newH = document.documentElement.scrollHeight;
+  if (Math.abs(canvas.height - newH) > 100) resize();
+});
+</script>
+</body>
+</html>

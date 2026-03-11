@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Star Phonics Adventure</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #0a0a1a;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    user-select: none;
+  }
+
+  /* ── CANVAS (stars background) ─────────────────────── */
+  #bgCanvas {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── SCREENS ─────────────────────────────────────── */
+  .screen {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    transition: opacity 0.4s;
+  }
+  .screen.hidden { opacity: 0; pointer-events: none; }
+
+  /* ── TITLE SCREEN ────────────────────────────────── */
+  #titleScreen {
+    background: radial-gradient(ellipse at center, #1a0a3a 0%, #0a0a1a 70%);
+  }
+
+  .title-logo {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+
+  .title-logo h1 {
+    font-size: clamp(36px, 7vw, 72px);
+    font-weight: 900;
+    background: linear-gradient(135deg, #ff6fd8, #ffcd38, #4fffb0);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: none;
+    letter-spacing: 2px;
+    line-height: 1.1;
+  }
+
+  .title-logo .subtitle {
+    font-size: clamp(14px, 2.5vw, 22px);
+    color: #a0c8ff;
+    margin-top: 8px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+
+  /* Monster on title */
+  .title-monster {
+    font-size: 90px;
+    animation: float 3s ease-in-out infinite;
+    filter: drop-shadow(0 0 20px rgba(100,200,255,0.6));
+    margin-bottom: 20px;
+  }
+
+  @keyframes float {
+    0%,100% { transform: translateY(0) rotate(-5deg); }
+    50%      { transform: translateY(-18px) rotate(5deg); }
+  }
+
+  .btn-start {
+    padding: 18px 56px;
+    font-size: 24px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #ff6fd8, #ff9a3c);
+    border: none;
+    border-radius: 50px;
+    color: #fff;
+    cursor: pointer;
+    box-shadow: 0 6px 30px rgba(255,100,200,0.5), 0 0 0 0 rgba(255,100,200,0.4);
+    animation: pulse-btn 2s infinite;
+    transition: transform 0.15s;
+    letter-spacing: 1px;
+  }
+  .btn-start:hover  { transform: scale(1.06); }
+  .btn-start:active { transform: scale(0.97); }
+  @keyframes pulse-btn {
+    0%,100% { box-shadow: 0 6px 30px rgba(255,100,200,0.5), 0 0 0 0 rgba(255,100,200,0.3); }
+    50%      { box-shadow: 0 6px 30px rgba(255,100,200,0.7), 0 0 0 14px rgba(255,100,200,0); }
+  }
+
+  .stars-deco {
+    position: absolute;
+    font-size: 20px;
+    animation: twinkle 2s ease-in-out infinite;
+    pointer-events: none;
+  }
+  @keyframes twinkle {
+    0%,100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: 0.3; transform: scale(0.7); }
+  }
+
+  /* ── GAME SCREEN ─────────────────────────────────── */
+  #gameScreen {
+    background: transparent;
+    flex-direction: column;
+    justify-content: flex-start;
+  }
+
+  /* HUD */
+  #hud {
+    width: 100%;
+    max-width: 900px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 24px;
+    z-index: 20;
+  }
+
+  .hud-score {
+    font-size: 22px;
+    font-weight: 800;
+    color: #ffcd38;
+    text-shadow: 0 0 10px rgba(255,200,50,0.6);
+    letter-spacing: 1px;
+  }
+  .hud-score span { font-size: 28px; }
+
+  .hud-lives { display: flex; gap: 6px; }
+  .heart { font-size: 26px; transition: transform 0.3s; }
+  .heart.lost { opacity: 0.2; transform: scale(0.8); }
+
+  .hud-level {
+    font-size: 18px;
+    font-weight: 700;
+    color: #a0c8ff;
+    background: rgba(255,255,255,0.07);
+    padding: 6px 16px;
+    border-radius: 20px;
+    border: 1px solid rgba(160,200,255,0.2);
+  }
+
+  /* Progress bar */
+  #progressBar {
+    width: 100%;
+    max-width: 900px;
+    height: 8px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 0 24px 10px;
+  }
+  #progressFill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #4fffb0, #00cfff);
+    border-radius: 4px;
+    transition: width 0.6s cubic-bezier(.4,0,.2,1);
+    box-shadow: 0 0 8px rgba(0,207,255,0.6);
+  }
+
+  /* Main game area */
+  #gameArea {
+    flex: 1;
+    width: 100%;
+    max-width: 900px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 20px 20px;
+    position: relative;
+  }
+
+  /* Monster */
+  #monster {
+    font-size: clamp(60px, 10vw, 90px);
+    margin-bottom: 16px;
+    filter: drop-shadow(0 0 16px rgba(100,200,255,0.5));
+    transition: transform 0.3s, filter 0.3s;
+    position: relative;
+    animation: bob 2.5s ease-in-out infinite;
+  }
+  @keyframes bob {
+    0%,100% { transform: translateY(0); }
+    50%      { transform: translateY(-10px); }
+  }
+  #monster.jump  { animation: jumpUp 0.5s ease-out forwards; }
+  #monster.shake { animation: shakeM 0.4s ease-out forwards; }
+  @keyframes jumpUp {
+    0%   { transform: translateY(0)    scale(1);   }
+    40%  { transform: translateY(-50px) scale(1.2); }
+    70%  { transform: translateY(-30px) scale(1.1); }
+    100% { transform: translateY(0)    scale(1);   }
+  }
+  @keyframes shakeM {
+    0%,100% { transform: translateX(0); }
+    20%     { transform: translateX(-12px); }
+    40%     { transform: translateX(12px); }
+    60%     { transform: translateX(-8px); }
+    80%     { transform: translateX(8px); }
+  }
+
+  /* Speech bubble */
+  #speechBubble {
+    background: rgba(255,255,255,0.96);
+    border-radius: 20px;
+    padding: 14px 28px;
+    margin-bottom: 24px;
+    position: relative;
+    max-width: 500px;
+    text-align: center;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    animation: popIn 0.4s cubic-bezier(.175,.885,.32,1.275);
+  }
+  #speechBubble::after {
+    content: '';
+    position: absolute;
+    top: -14px; left: 50%;
+    transform: translateX(-50%);
+    border: 8px solid transparent;
+    border-bottom-color: rgba(255,255,255,0.96);
+  }
+  @keyframes popIn {
+    from { transform: scale(0.7); opacity: 0; }
+    to   { transform: scale(1);   opacity: 1; }
+  }
+
+  #speechBubble .prompt-label {
+    font-size: 13px;
+    font-weight: 700;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 4px;
+  }
+
+  #phonemeDisplay {
+    font-size: clamp(32px, 6vw, 56px);
+    font-weight: 900;
+    color: #2d1b69;
+    letter-spacing: 2px;
+  }
+  #phonemeDisplay .highlight {
+    color: #ff4ca1;
+    font-size: 1.2em;
+  }
+
+  /* Choice buttons (asteroids) */
+  #choicesGrid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: clamp(10px, 2vw, 20px);
+    width: 100%;
+    max-width: 700px;
+  }
+
+  .choice-btn {
+    position: relative;
+    aspect-ratio: 1;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: clamp(22px, 4vw, 40px);
+    font-weight: 900;
+    color: #fff;
+    background: transparent;
+    transition: transform 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .choice-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 20px;
+    transition: opacity 0.2s;
+  }
+  .choice-btn:hover  { transform: scale(1.08) translateY(-4px); }
+  .choice-btn:active { transform: scale(0.95); }
+
+  /* Asteroid variants */
+  .choice-btn.ast-1 { background: radial-gradient(circle at 35% 35%, #7c6bff, #3a2d9f); box-shadow: 0 6px 20px rgba(100,80,255,0.4), inset 0 2px 4px rgba(255,255,255,0.2); }
+  .choice-btn.ast-2 { background: radial-gradient(circle at 35% 35%, #ff6b9d, #c0356f); box-shadow: 0 6px 20px rgba(255,80,150,0.4), inset 0 2px 4px rgba(255,255,255,0.2); }
+  .choice-btn.ast-3 { background: radial-gradient(circle at 35% 35%, #4fc3f7, #0277bd); box-shadow: 0 6px 20px rgba(0,150,255,0.4), inset 0 2px 4px rgba(255,255,255,0.2); }
+  .choice-btn.ast-4 { background: radial-gradient(circle at 35% 35%, #69f0ae, #1b7a4e); box-shadow: 0 6px 20px rgba(50,220,130,0.4), inset 0 2px 4px rgba(255,255,255,0.2); }
+
+  .choice-btn .letter { position: relative; z-index: 1; line-height: 1; }
+  .choice-btn .deco   { position: relative; z-index: 1; font-size: 0.45em; opacity: 0.7; margin-top: 2px; }
+
+  /* Correct / wrong feedback */
+  .choice-btn.correct {
+    animation: correctPop 0.5s ease-out forwards;
+    pointer-events: none;
+  }
+  .choice-btn.wrong {
+    animation: wrongShake 0.4s ease-out forwards;
+    pointer-events: none;
+  }
+  @keyframes correctPop {
+    0%   { transform: scale(1); }
+    30%  { transform: scale(1.25); filter: brightness(1.5); }
+    60%  { transform: scale(1.1); }
+    100% { transform: scale(1); opacity: 0; }
+  }
+  @keyframes wrongShake {
+    0%,100% { transform: translateX(0); opacity: 1; }
+    20%     { transform: translateX(-10px); }
+    40%     { transform: translateX(10px); opacity: 0.7; }
+    60%     { transform: translateX(-6px); }
+    80%     { transform: translateX(6px); }
+    100%    { opacity: 0.3; }
+  }
+
+  /* Particles */
+  .particle {
+    position: fixed;
+    pointer-events: none;
+    z-index: 100;
+    font-size: 22px;
+    animation: flyUp 1s ease-out forwards;
+  }
+  @keyframes flyUp {
+    0%   { transform: translate(0, 0)    scale(1);   opacity: 1; }
+    100% { transform: translate(var(--dx), -120px) scale(0.3); opacity: 0; }
+  }
+
+  /* ── RESULT SCREEN ───────────────────────────────── */
+  #resultScreen {
+    background: radial-gradient(ellipse at center, #1a0a3a 0%, #0a0a1a 70%);
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  #resultMonster {
+    font-size: clamp(70px, 12vw, 110px);
+    animation: celebrate 0.8s ease-in-out infinite alternate;
+    filter: drop-shadow(0 0 24px rgba(100,255,200,0.7));
+  }
+  @keyframes celebrate {
+    from { transform: rotate(-10deg) scale(1);   }
+    to   { transform: rotate(10deg)  scale(1.1); }
+  }
+
+  #resultTitle {
+    font-size: clamp(36px, 6vw, 60px);
+    font-weight: 900;
+    background: linear-gradient(135deg, #ffcd38, #ff6fd8, #4fffb0);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .result-stats {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .stat-box {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 16px;
+    padding: 16px 32px;
+    text-align: center;
+  }
+  .stat-box .stat-num {
+    font-size: 40px;
+    font-weight: 900;
+    color: #ffcd38;
+  }
+  .stat-box .stat-label {
+    font-size: 13px;
+    color: #a0c8ff;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+  }
+
+  #resultScreen .btn-start { margin-top: 8px; }
+
+  /* ── FEEDBACK TOAST ──────────────────────────────── */
+  #toast {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    z-index: 200;
+    font-size: clamp(40px, 8vw, 80px);
+    font-weight: 900;
+    pointer-events: none;
+    transition: transform 0.25s cubic-bezier(.175,.885,.32,1.275), opacity 0.3s;
+    opacity: 0;
+    text-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    white-space: nowrap;
+  }
+  #toast.show {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+  #toast.correct { color: #4fffb0; }
+  #toast.wrong   { color: #ff5c5c; }
+
+  /* ── PROGRESS DOTS ──────────────────────────────── */
+  #questionDots {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+    margin-bottom: 16px;
+  }
+  .q-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    transition: background 0.3s, transform 0.3s;
+  }
+  .q-dot.done    { background: #4fffb0; transform: scale(1.2); box-shadow: 0 0 6px rgba(79,255,176,0.6); }
+  .q-dot.current { background: #ffcd38; animation: dotPulse 1s infinite; }
+  @keyframes dotPulse {
+    0%,100% { box-shadow: 0 0 0 0 rgba(255,205,56,0.5); }
+    50%      { box-shadow: 0 0 0 5px rgba(255,205,56,0); }
+  }
+  .q-dot.wrong-dot { background: #ff5c5c; }
+
+  /* Combo badge */
+  #comboBadge {
+    position: fixed;
+    top: 70px;
+    right: 30px;
+    background: linear-gradient(135deg, #ffcd38, #ff9a3c);
+    color: #fff;
+    font-size: 16px;
+    font-weight: 900;
+    padding: 8px 18px;
+    border-radius: 30px;
+    box-shadow: 0 4px 16px rgba(255,180,50,0.5);
+    transform: scale(0) rotate(-10deg);
+    transition: transform 0.3s cubic-bezier(.175,.885,.32,1.275);
+    z-index: 50;
+    pointer-events: none;
+    letter-spacing: 1px;
+  }
+  #comboBadge.show { transform: scale(1) rotate(-10deg); }
+
+</style>
+</head>
+<body>
+
+<canvas id="bgCanvas"></canvas>
+
+<!-- ── TITLE SCREEN ─────────────────────────────────── -->
+<div class="screen" id="titleScreen">
+  <div class="stars-deco" style="top:15%;left:8%;animation-delay:0s">⭐</div>
+  <div class="stars-deco" style="top:25%;right:10%;animation-delay:0.5s">✨</div>
+  <div class="stars-deco" style="bottom:20%;left:12%;animation-delay:1s">🌟</div>
+  <div class="stars-deco" style="bottom:30%;right:8%;animation-delay:1.5s">💫</div>
+
+  <div class="title-monster" id="titleMonster">👾</div>
+
+  <div class="title-logo">
+    <h1>Star Phonics<br>Adventure</h1>
+    <div class="subtitle">Learn letters · Sound it out!</div>
+  </div>
+
+  <button class="btn-start" id="btnStart">🚀 Play Now!</button>
+
+  <div style="margin-top:28px;color:#607090;font-size:14px;letter-spacing:1px;">
+    Ages 3–6 · Phonics · Letters & Sounds
+  </div>
+</div>
+
+<!-- ── GAME SCREEN ──────────────────────────────────── -->
+<div class="screen hidden" id="gameScreen">
+  <div id="hud">
+    <div class="hud-score">⭐ <span id="scoreNum">0</span></div>
+    <div class="hud-lives" id="livesRow"></div>
+    <div class="hud-level" id="levelLabel">Level 1</div>
+  </div>
+
+  <div id="progressBar"><div id="progressFill"></div></div>
+
+  <div id="gameArea">
+    <div id="monster">👾</div>
+
+    <div id="questionDots"></div>
+
+    <div id="speechBubble">
+      <div class="prompt-label">Find the letter that says…</div>
+      <div id="phonemeDisplay"></div>
+    </div>
+
+    <div id="choicesGrid"></div>
+  </div>
+</div>
+
+<!-- ── RESULT SCREEN ────────────────────────────────── -->
+<div class="screen hidden" id="resultScreen">
+  <div id="resultMonster">🎉</div>
+  <div id="resultTitle">Amazing!</div>
+  <div class="result-stats">
+    <div class="stat-box">
+      <div class="stat-num" id="finalScore">0</div>
+      <div class="stat-label">Stars</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-num" id="finalCorrect">0</div>
+      <div class="stat-label">Correct</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-num" id="finalBest">0</div>
+      <div class="stat-label">Best Combo</div>
+    </div>
+  </div>
+  <button class="btn-start" id="btnReplay">🔄 Play Again!</button>
+</div>
+
+<!-- Feedback overlay -->
+<div id="toast"></div>
+<div id="comboBadge">🔥 x<span id="comboNum">2</span> Combo!</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────
+//  STAR BACKGROUND
+// ─────────────────────────────────────────────────────────────
+const bgCanvas = document.getElementById('bgCanvas');
+const bgCtx    = bgCanvas.getContext('2d');
+let stars = [];
+
+function resizeCanvas() {
+  bgCanvas.width  = window.innerWidth;
+  bgCanvas.height = window.innerHeight;
+  initStars();
+}
+
+function initStars() {
+  stars = [];
+  const N = Math.floor((bgCanvas.width * bgCanvas.height) / 4000);
+  for (let i = 0; i < N; i++) {
+    stars.push({
+      x: Math.random() * bgCanvas.width,
+      y: Math.random() * bgCanvas.height,
+      r: Math.random() * 1.8 + 0.2,
+      a: Math.random(),
+      da: (Math.random() - 0.5) * 0.006,
+      speed: Math.random() * 0.15 + 0.05,
+      color: ['#ffffff','#a0c8ff','#ffd9a0','#c8a0ff'][Math.floor(Math.random()*4)]
+    });
+  }
+  // A few bigger "planet" blobs
+  for (let i = 0; i < 5; i++) {
+    stars.push({
+      x: Math.random() * bgCanvas.width,
+      y: Math.random() * bgCanvas.height,
+      r: Math.random() * 60 + 20,
+      a: 0.04 + Math.random() * 0.06,
+      da: 0,
+      speed: 0,
+      color: ['#3a2d9f','#c0356f','#0277bd','#1b7a4e','#5c2a7e'][i],
+      isPlanet: true
+    });
+  }
+}
+
+function drawBg() {
+  bgCtx.clearRect(0, 0, bgCanvas.width, bgCanvas.height);
+
+  // Deep space gradient
+  const grad = bgCtx.createRadialGradient(
+    bgCanvas.width/2, bgCanvas.height/2, 0,
+    bgCanvas.width/2, bgCanvas.height/2, bgCanvas.width * 0.8
+  );
+  grad.addColorStop(0, '#12083a');
+  grad.addColorStop(1, '#050510');
+  bgCtx.fillStyle = grad;
+  bgCtx.fillRect(0, 0, bgCanvas.width, bgCanvas.height);
+
+  stars.forEach(s => {
+    s.a += s.da;
+    if (s.a > 1) { s.a = 1; s.da = -Math.abs(s.da); }
+    if (s.a < 0) { s.a = 0; s.da =  Math.abs(s.da); }
+    s.y += s.speed;
+    if (s.y > bgCanvas.height + s.r) s.y = -s.r;
+
+    bgCtx.beginPath();
+    bgCtx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    bgCtx.fillStyle = s.isPlanet
+      ? s.color + Math.round(s.a * 255).toString(16).padStart(2,'0')
+      : s.color;
+    bgCtx.globalAlpha = s.isPlanet ? s.a : s.a;
+    bgCtx.fill();
+    bgCtx.globalAlpha = 1;
+  });
+
+  requestAnimationFrame(drawBg);
+}
+
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+drawBg();
+
+// ─────────────────────────────────────────────────────────────
+//  GAME DATA
+// ─────────────────────────────────────────────────────────────
+const LEVELS = [
+  {
+    name: 'Level 1',
+    label: '⭐ First Steps',
+    rounds: [
+      { prompt: '"a" as in apple',   answer: 'A', choices: ['A','B','C','D'],  image:'🍎' },
+      { prompt: '"b" as in ball',    answer: 'B', choices: ['D','B','P','R'],  image:'🏀' },
+      { prompt: '"c" as in cat',     answer: 'C', choices: ['G','C','O','Q'],  image:'🐱' },
+      { prompt: '"d" as in dog',     answer: 'D', choices: ['B','D','P','Q'],  image:'🐶' },
+      { prompt: '"e" as in egg',     answer: 'E', choices: ['E','F','A','I'],  image:'🥚' },
+      { prompt: '"f" as in fish',    answer: 'F', choices: ['T','E','F','L'],  image:'🐟' },
+      { prompt: '"g" as in goat',    answer: 'G', choices: ['Q','C','G','O'],  image:'🐐' },
+      { prompt: '"h" as in hat',     answer: 'H', choices: ['H','N','M','A'],  image:'🎩' },
+    ]
+  },
+  {
+    name: 'Level 2',
+    label: '🌟 Fun With Words',
+    rounds: [
+      { prompt: '"i" as in igloo',   answer: 'I', choices: ['I','L','T','J'],  image:'🧊' },
+      { prompt: '"j" as in jar',     answer: 'J', choices: ['I','J','L','G'],  image:'🫙' },
+      { prompt: '"k" as in kite',    answer: 'K', choices: ['H','K','X','R'],  image:'🪁' },
+      { prompt: '"l" as in lion',    answer: 'L', choices: ['I','T','L','F'],  image:'🦁' },
+      { prompt: '"m" as in moon',    answer: 'M', choices: ['N','W','M','H'],  image:'🌙' },
+      { prompt: '"n" as in nut',     answer: 'N', choices: ['M','H','N','W'],  image:'🥜' },
+      { prompt: '"o" as in orange',  answer: 'O', choices: ['Q','C','O','D'],  image:'🍊' },
+      { prompt: '"p" as in pig',     answer: 'P', choices: ['B','D','R','P'],  image:'🐷' },
+    ]
+  },
+  {
+    name: 'Level 3',
+    label: '🏆 Champion Reader',
+    rounds: [
+      { prompt: '"qu" as in queen',  answer: 'Q', choices: ['O','G','Q','C'],  image:'👑' },
+      { prompt: '"r" as in rainbow', answer: 'R', choices: ['P','B','R','K'],  image:'🌈' },
+      { prompt: '"s" as in sun',     answer: 'S', choices: ['S','Z','C','5'],  image:'☀️' },
+      { prompt: '"t" as in tree',    answer: 'T', choices: ['F','T','L','I'],  image:'🌲' },
+      { prompt: '"u" as in umbrella',answer: 'U', choices: ['V','U','N','W'],  image:'☂️' },
+      { prompt: '"v" as in volcano', answer: 'V', choices: ['W','U','V','Y'],  image:'🌋' },
+      { prompt: '"w" as in whale',   answer: 'W', choices: ['V','M','W','N'],  image:'🐋' },
+      { prompt: '"x" as in fox',     answer: 'X', choices: ['Z','K','X','Y'],  image:'🦊' },
+    ]
+  }
+];
+
+const MONSTERS   = ['👾','🤖','👻','🐲','🦄','🐸','🦋','🦖'];
+const DECOS      = ['🌠','💫','⚡','🔮','🎯','🌀'];
+const AST_CLASS  = ['ast-1','ast-2','ast-3','ast-4'];
+
+// ─────────────────────────────────────────────────────────────
+//  STATE
+// ─────────────────────────────────────────────────────────────
+let currentLevel  = 0;
+let currentRound  = 0;
+let score         = 0;
+let lives         = 3;
+let combo         = 0;
+let bestCombo     = 0;
+let correctCount  = 0;
+let totalRounds   = 0;
+let locked        = false;
+let monsterEmoji  = '👾';
+
+// ─────────────────────────────────────────────────────────────
+//  DOM REFS
+// ─────────────────────────────────────────────────────────────
+const titleScreen  = document.getElementById('titleScreen');
+const gameScreen   = document.getElementById('gameScreen');
+const resultScreen = document.getElementById('resultScreen');
+const monsterEl    = document.getElementById('monster');
+const scoreNum     = document.getElementById('scoreNum');
+const livesRow     = document.getElementById('livesRow');
+const levelLabel   = document.getElementById('levelLabel');
+const progressFill = document.getElementById('progressFill');
+const phonemeDisp  = document.getElementById('phonemeDisplay');
+const choicesGrid  = document.getElementById('choicesGrid');
+const questionDots = document.getElementById('questionDots');
+const toast        = document.getElementById('toast');
+const comboBadge   = document.getElementById('comboBadge');
+const comboNum     = document.getElementById('comboNum');
+
+// ─────────────────────────────────────────────────────────────
+//  SCREENS
+// ─────────────────────────────────────────────────────────────
+function showScreen(id) {
+  [titleScreen, gameScreen, resultScreen].forEach(s => s.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+}
+
+// ─────────────────────────────────────────────────────────────
+//  TITLE
+// ─────────────────────────────────────────────────────────────
+document.getElementById('btnStart').addEventListener('click', startGame);
+document.getElementById('btnReplay').addEventListener('click', startGame);
+
+// Cycle monster emoji on title
+let titleMonsterIdx = 0;
+setInterval(() => {
+  titleMonsterIdx = (titleMonsterIdx + 1) % MONSTERS.length;
+  document.getElementById('titleMonster').textContent = MONSTERS[titleMonsterIdx];
+}, 1800);
+
+// ─────────────────────────────────────────────────────────────
+//  START GAME
+// ─────────────────────────────────────────────────────────────
+function startGame() {
+  currentLevel = 0;
+  currentRound = 0;
+  score        = 0;
+  lives        = 3;
+  combo        = 0;
+  bestCombo    = 0;
+  correctCount = 0;
+  locked       = false;
+
+  monsterEmoji = MONSTERS[Math.floor(Math.random() * MONSTERS.length)];
+  monsterEl.textContent = monsterEmoji;
+
+  totalRounds = LEVELS.reduce((s, l) => s + l.rounds.length, 0);
+
+  showScreen('gameScreen');
+  buildLives();
+  buildDots();
+  renderRound();
+}
+
+// ─────────────────────────────────────────────────────────────
+//  LIVES
+// ─────────────────────────────────────────────────────────────
+function buildLives() {
+  livesRow.innerHTML = '';
+  for (let i = 0; i < 3; i++) {
+    const h = document.createElement('div');
+    h.className = 'heart' + (i >= lives ? ' lost' : '');
+    h.textContent = '❤️';
+    livesRow.appendChild(h);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+//  QUESTION DOTS
+// ─────────────────────────────────────────────────────────────
+function buildDots() {
+  questionDots.innerHTML = '';
+  const rounds = LEVELS[currentLevel].rounds;
+  rounds.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'q-dot' + (i === currentRound ? ' current' : '');
+    questionDots.appendChild(d);
+  });
+}
+
+function updateDot(idx, state) {
+  const dots = questionDots.querySelectorAll('.q-dot');
+  if (dots[idx]) {
+    dots[idx].className = 'q-dot ' + (state === 'correct' ? 'done' : 'wrong-dot');
+  }
+  if (dots[idx + 1]) dots[idx + 1].classList.add('current');
+}
+
+// ─────────────────────────────────────────────────────────────
+//  RENDER ROUND
+// ─────────────────────────────────────────────────────────────
+function renderRound() {
+  const lv    = LEVELS[currentLevel];
+  const round = lv.rounds[currentRound];
+
+  levelLabel.textContent   = lv.label;
+  phonemeDisp.innerHTML    = `<span class="highlight">${round.image}</span> ${round.prompt}`;
+
+  // Shuffle choices
+  const shuffled = [...round.choices].sort(() => Math.random() - 0.5);
+
+  choicesGrid.innerHTML = '';
+  shuffled.forEach((letter, i) => {
+    const btn  = document.createElement('button');
+    const aIdx = i % AST_CLASS.length;
+    btn.className = `choice-btn ${AST_CLASS[aIdx]}`;
+    btn.innerHTML = `
+      <span class="letter">${letter}</span>
+      <span class="deco">${DECOS[Math.floor(Math.random() * DECOS.length)]}</span>
+    `;
+    btn.addEventListener('click', () => handleChoice(btn, letter, round.answer));
+    choicesGrid.appendChild(btn);
+  });
+
+  // Progress bar
+  const roundsDone = LEVELS.slice(0, currentLevel).reduce((s, l) => s + l.rounds.length, 0) + currentRound;
+  progressFill.style.width = (roundsDone / totalRounds * 100) + '%';
+}
+
+// ─────────────────────────────────────────────────────────────
+//  HANDLE CHOICE
+// ─────────────────────────────────────────────────────────────
+function handleChoice(btn, letter, answer) {
+  if (locked) return;
+  locked = true;
+
+  const correct = letter === answer;
+
+  if (correct) {
+    btn.classList.add('correct');
+    score    += 10 + combo * 5;
+    combo    += 1;
+    bestCombo = Math.max(bestCombo, combo);
+    correctCount++;
+    scoreNum.textContent = score;
+
+    animateMonster('jump');
+    showToast('⭐ Correct!', 'correct');
+    spawnParticles(btn, ['⭐','✨','💫','🌟']);
+
+    if (combo >= 2) {
+      comboNum.textContent = combo;
+      comboBadge.classList.add('show');
+      setTimeout(() => comboBadge.classList.remove('show'), 1600);
+    }
+
+    updateDot(currentRound, 'correct');
+    setTimeout(advanceRound, 900);
+
+  } else {
+    btn.classList.add('wrong');
+    lives   -= 1;
+    combo    = 0;
+    buildLives();
+
+    animateMonster('shake');
+    showToast('Try again! 💪', 'wrong');
+
+    // Highlight correct
+    choicesGrid.querySelectorAll('.choice-btn').forEach(b => {
+      if (b.querySelector('.letter').textContent === answer) {
+        setTimeout(() => {
+          b.style.filter = 'brightness(1.8)';
+          b.style.transform = 'scale(1.12)';
+        }, 400);
+      }
+    });
+
+    updateDot(currentRound, 'wrong');
+
+    if (lives <= 0) {
+      setTimeout(endGame, 1200);
+    } else {
+      setTimeout(() => { locked = false; }, 900);
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+//  ADVANCE ROUND
+// ─────────────────────────────────────────────────────────────
+function advanceRound() {
+  currentRound++;
+  const lv = LEVELS[currentLevel];
+
+  if (currentRound >= lv.rounds.length) {
+    currentLevel++;
+    if (currentLevel >= LEVELS.length) {
+      endGame();
+      return;
+    }
+    currentRound = 0;
+    // Level up toast
+    showToast(`🚀 Level ${currentLevel + 1}!`, 'correct');
+    setTimeout(() => {
+      buildDots();
+      renderRound();
+      locked = false;
+    }, 700);
+  } else {
+    renderRound();
+    locked = false;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+//  MONSTER ANIMATION
+// ─────────────────────────────────────────────────────────────
+function animateMonster(type) {
+  monsterEl.classList.remove('jump', 'shake');
+  void monsterEl.offsetWidth;
+  monsterEl.classList.add(type);
+  setTimeout(() => monsterEl.classList.remove(type), 600);
+}
+
+// ─────────────────────────────────────────────────────────────
+//  TOAST
+// ─────────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg, type) {
+  clearTimeout(toastTimer);
+  toast.textContent  = msg;
+  toast.className    = 'show ' + type;
+  toastTimer = setTimeout(() => toast.className = '', 900);
+}
+
+// ─────────────────────────────────────────────────────────────
+//  PARTICLES
+// ─────────────────────────────────────────────────────────────
+function spawnParticles(btn, emojis) {
+  const rect = btn.getBoundingClientRect();
+  const cx   = rect.left + rect.width  / 2;
+  const cy   = rect.top  + rect.height / 2;
+
+  for (let i = 0; i < 8; i++) {
+    const p  = document.createElement('div');
+    p.className = 'particle';
+    p.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+    const dx = (Math.random() - 0.5) * 160;
+    p.style.setProperty('--dx', dx + 'px');
+    p.style.left = cx + 'px';
+    p.style.top  = cy + 'px';
+    p.style.animationDelay = (Math.random() * 0.2) + 's';
+    document.body.appendChild(p);
+    setTimeout(() => p.remove(), 1200);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+//  END GAME
+// ─────────────────────────────────────────────────────────────
+function endGame() {
+  const pct = Math.round((correctCount / totalRounds) * 100);
+
+  document.getElementById('resultMonster').textContent =
+    pct >= 80 ? '🏆' : pct >= 50 ? '😊' : '💪';
+
+  document.getElementById('resultTitle').textContent =
+    pct >= 80 ? 'Amazing!' : pct >= 50 ? 'Great Job!' : 'Keep Trying!';
+
+  document.getElementById('finalScore').textContent   = score;
+  document.getElementById('finalCorrect').textContent = `${correctCount}/${totalRounds}`;
+  document.getElementById('finalBest').textContent    = bestCombo;
+
+  // Progress bar to 100%
+  progressFill.style.width = '100%';
+
+  showScreen('resultScreen');
+
+  // Confetti burst
+  setTimeout(() => {
+    for (let i = 0; i < 30; i++) {
+      setTimeout(() => {
+        const p = document.createElement('div');
+        p.className = 'particle';
+        p.textContent = ['🌟','⭐','✨','💫','🎉','🎊','🏆','💥'][Math.floor(Math.random()*8)];
+        p.style.setProperty('--dx', (Math.random()-0.5)*300+'px');
+        p.style.left = (20 + Math.random()*60) + 'vw';
+        p.style.top  = (30 + Math.random()*40) + 'vh';
+        p.style.fontSize = (16 + Math.random()*20)+'px';
+        document.body.appendChild(p);
+        setTimeout(() => p.remove(), 1200);
+      }, i * 60);
+    }
+  }, 300);
+}
+</script>
+</body>
+</html>
