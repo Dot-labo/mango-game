@@ -78,14 +78,15 @@ html,body{width:100%;height:100%;overflow:hidden;background:#06071a;color:#fff;
 
 /* falling word */
 .fword{position:absolute;transform:translateX(-50%);
-  padding:.5rem 1.3rem;background:rgba(10,10,35,.72);
-  border:1.5px solid rgba(160,132,255,.38);border-radius:14px;
-  font-size:1.35rem;font-weight:800;letter-spacing:.05em;
-  color:#ddd8ff;text-shadow:0 0 18px rgba(160,132,255,.7);
-  box-shadow:0 0 22px rgba(124,58,237,.2),inset 0 0 14px rgba(124,58,237,.04);
-  backdrop-filter:blur(5px);white-space:nowrap;pointer-events:none;user-select:none}
-.fword.urgent{border-color:rgba(248,113,113,.65);color:#fca5a5;
-  text-shadow:0 0 18px rgba(248,113,113,.75);box-shadow:0 0 22px rgba(248,113,113,.25)}
+  padding:.55rem 1.5rem;background:rgba(40,20,80,.88);
+  border:2px solid rgba(180,150,255,.7);border-radius:14px;
+  font-size:1.45rem;font-weight:900;letter-spacing:.07em;
+  color:#ffffff;text-shadow:0 0 16px rgba(200,170,255,1),0 2px 4px rgba(0,0,0,.8);
+  box-shadow:0 0 28px rgba(140,80,255,.5),0 4px 16px rgba(0,0,0,.5);
+  white-space:nowrap;pointer-events:none;user-select:none}
+.fword.urgent{border-color:rgba(248,113,113,.9);
+  text-shadow:0 0 16px rgba(255,150,150,1),0 2px 4px rgba(0,0,0,.8);
+  box-shadow:0 0 28px rgba(248,113,113,.55),0 4px 16px rgba(0,0,0,.5)}
 .fword.answered{opacity:0;transform:translateX(-50%) scale(1.25);
   transition:opacity .3s,transform .3s}
 
@@ -646,9 +647,10 @@ function onCorrect(btn) {
   spawnParts(rect.left + rect.width / 2, rect.top + rect.height / 2);
   showScorePop(rect.left + rect.width / 2, rect.top, '+' + pts);
 
-  // Remove word
-  fw.el.classList.add('answered');
-  setTimeout(() => { if (fw && fw.el && fw.el.parentNode) fw.el.parentNode.removeChild(fw.el); }, 350);
+  // Remove word — capture element ref BEFORE clearing fw (setTimeout closure uses global fw)
+  const doneEl = fw.el;
+  doneEl.classList.add('answered');
+  setTimeout(() => { if (doneEl.parentNode) doneEl.parentNode.removeChild(doneEl); }, 350);
   fw = null;
 
   setTimeout(() => { btn.classList.remove('cor'); locked = false; updateHUD(); }, 320);
