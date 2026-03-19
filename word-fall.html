@@ -405,11 +405,14 @@ let wDB = loadDB();
 const bgC = document.getElementById('bgC'), bgX = bgC.getContext('2d');
 const pC  = document.getElementById('pC'),  pX  = pC.getContext('2d');
 let bgParts = [];
+let rareStars = [], rareSpawnTimer = 4, bgLastTs = null;
+const RARE_COLORS = ['#ffd700','#ff9de2','#7df9ff','#ccaaff','#adffc8','#fffde7'];
 
 function resizeCanvases() {
   bgC.width = pC.width = window.innerWidth;
   bgC.height = pC.height = window.innerHeight;
   initBgParts();
+  rareStars = []; rareSpawnTimer = 4;
 }
 
 function initBgParts() {
@@ -427,7 +430,119 @@ function initBgParts() {
   }
 }
 
+function spawnRareStar() {
+  const W = bgC.width, H = bgC.height;
+  const roll = Math.random();
+  if (roll < 0.42) {
+    // 流れ星 (shooting star)
+    const left = Math.random() < 0.5;
+    rareStars.push({
+      type: 'shoot',
+      x: left ? -10 : W + 10, y: Math.random() * H * 0.5,
+      vx: (left ? 1 : -1) * (280 + Math.random() * 200),
+      vy: 60 + Math.random() * 80,
+      life: 1.1, max: 1.1,
+      color: Math.random() < 0.3 ? '#ffd700' : '#e8f0ff',
+      tail: 55 + Math.random() * 35
+    });
+  } else if (roll < 0.78) {
+    // カラーグロー星 (colored glow star)
+    rareStars.push({
+      type: 'glow',
+      x: W * 0.08 + Math.random() * W * 0.84,
+      y: Math.random() * H * 0.78,
+      r: Math.random() * 2 + 1.5,
+      life: 4 + Math.random() * 2.5, max: 4 + Math.random() * 2.5,
+      color: RARE_COLORS[Math.floor(Math.random() * RARE_COLORS.length)],
+      phase: Math.random() * Math.PI * 2
+    });
+  } else {
+    // きらめき星 (4-point sparkle)
+    rareStars.push({
+      type: 'sparkle',
+      x: W * 0.08 + Math.random() * W * 0.84,
+      y: Math.random() * H * 0.8,
+      r: Math.random() * 1.8 + 1.5,
+      life: 2.5 + Math.random(), max: 2.5 + Math.random(),
+      color: Math.random() < 0.5 ? '#fffde7' : RARE_COLORS[Math.floor(Math.random() * RARE_COLORS.length)],
+      spin: (Math.random() - 0.5) * 1.5,
+      phase: Math.random() * Math.PI * 2
+    });
+  }
+}
+
+function drawRareStars(dt, t) {
+  // Spawn rate: 9s at start → 3s at end of game
+  const progress = running ? Math.max(0, (TOTAL_T - timeLeft) / TOTAL_T) : 0.15;
+  rareSpawnTimer -= dt;
+  if (rareSpawnTimer <= 0) {
+    spawnRareStar();
+    const interval = 9 - 6 * progress;
+    rareSpawnTimer = interval * (0.5 + Math.random() * 0.9);
+  }
+
+  for (let i = rareStars.length - 1; i >= 0; i--) {
+    const s = rareStars[i];
+    s.life -= dt;
+    if (s.life <= 0) { rareStars.splice(i, 1); continue; }
+    const p = 1 - s.life / s.max; // 0→1
+
+    if (s.type === 'shoot') {
+      s.x += s.vx * dt; s.y += s.vy * dt;
+      const alpha = Math.min(1, (s.max - s.life) * 8) * Math.min(1, s.life * 5);
+      const tx = s.x - (s.vx / Math.abs(s.vx)) * s.tail;
+      const ty = s.y - (s.vy / 120) * s.tail;
+      const grad = bgX.createLinearGradient(tx, ty, s.x, s.y);
+      grad.addColorStop(0, 'transparent'); grad.addColorStop(1, s.color);
+      bgX.save();
+      bgX.globalAlpha = alpha;
+      bgX.strokeStyle = grad; bgX.lineWidth = 1.8;
+      bgX.beginPath(); bgX.moveTo(tx, ty); bgX.lineTo(s.x, s.y); bgX.stroke();
+      bgX.fillStyle = '#fff';
+      bgX.beginPath(); bgX.arc(s.x, s.y, 1.8, 0, Math.PI * 2); bgX.fill();
+      bgX.restore();
+
+    } else if (s.type === 'glow') {
+      const alpha = p < 0.1 ? p / 0.1 : p > 0.78 ? (1 - p) / 0.22 : 1;
+      const pulse = 1 + 0.3 * Math.sin(t * 0.0022 + s.phase);
+      bgX.save();
+      bgX.globalAlpha = alpha * 0.82;
+      const grd = bgX.createRadialGradient(s.x, s.y, 0, s.x, s.y, s.r * 5.5 * pulse);
+      grd.addColorStop(0, s.color); grd.addColorStop(0.3, s.color + '55'); grd.addColorStop(1, 'transparent');
+      bgX.fillStyle = grd;
+      bgX.beginPath(); bgX.arc(s.x, s.y, s.r * 5.5 * pulse, 0, Math.PI * 2); bgX.fill();
+      bgX.globalAlpha = alpha;
+      bgX.fillStyle = '#fff';
+      bgX.beginPath(); bgX.arc(s.x, s.y, s.r * 0.6, 0, Math.PI * 2); bgX.fill();
+      bgX.restore();
+
+    } else if (s.type === 'sparkle') {
+      const alpha = p < 0.15 ? p / 0.15 : p > 0.75 ? (1 - p) / 0.25 : 1;
+      const sc = 1 + 0.22 * Math.sin(t * 0.003 + s.phase);
+      const r1 = s.r * 3.5 * sc, r2 = s.r * 0.85;
+      bgX.save();
+      bgX.globalAlpha = alpha * 0.88;
+      bgX.translate(s.x, s.y);
+      bgX.rotate(s.spin * t * 0.0008);
+      bgX.fillStyle = s.color;
+      bgX.beginPath();
+      for (let k = 0; k < 8; k++) {
+        const a = k * Math.PI / 4;
+        const r = k % 2 === 0 ? r1 : r2;
+        k === 0 ? bgX.moveTo(Math.cos(a)*r, Math.sin(a)*r)
+                : bgX.lineTo(Math.cos(a)*r, Math.sin(a)*r);
+      }
+      bgX.closePath(); bgX.fill();
+      bgX.fillStyle = '#fff';
+      bgX.beginPath(); bgX.arc(0, 0, s.r * 0.5, 0, Math.PI * 2); bgX.fill();
+      bgX.restore();
+    }
+  }
+}
+
 function drawBG(t) {
+  const dt = bgLastTs ? Math.min((t - bgLastTs) / 1000, 0.1) : 0;
+  bgLastTs = t;
   const W = bgC.width, H = bgC.height;
   const g = bgX.createRadialGradient(W*.5, H*.25, 0, W*.5, H*.25, W*.9);
   g.addColorStop(0, '#0d0d2e');
@@ -449,6 +564,9 @@ function drawBG(t) {
     bgX.beginPath(); bgX.arc(p.x, p.y, p.r, 0, Math.PI * 2);
     bgX.fillStyle = `hsla(${p.h},80%,72%,${p.a})`; bgX.fill();
   }
+
+  // rare stars
+  drawRareStars(dt, t);
 }
 
 // ══════════════════════════════════════════════════════════════
