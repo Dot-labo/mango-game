@@ -101,6 +101,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:#06071a;color:#fff;
 .cbtn:not(.chide):hover{background:rgba(124,58,237,.22);border-color:rgba(124,58,237,.5)}
 .cbtn:not(.chide):active{transform:scale(.95)}
 .cbtn.chide{opacity:0;pointer-events:none}
+.bgm-btn{background:none;border:1px solid rgba(255,255,255,.16);border-radius:8px;
+  color:#666;padding:.18rem .48rem;cursor:pointer;font-size:1.05rem;
+  transition:all .2s;flex-shrink:0;line-height:1}
+.bgm-btn:hover{background:rgba(255,255,255,.1);color:#c4b5fd}
+.bgm-btn.on{color:#a78bfa;border-color:rgba(167,139,250,.5)}
 .cbtn.cor{background:rgba(74,222,128,.2)!important;border-color:#4ade80!important;
   color:#4ade80!important;box-shadow:0 0 18px rgba(74,222,128,.4)!important}
 .cbtn.wrng{background:rgba(248,113,113,.2)!important;border-color:#f87171!important;
@@ -188,7 +193,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#06071a;color:#fff;
 <div id="titleScreen" class="screen">
   <div class="logo">⬇ Word Fall</div>
   <div class="logo-sub">SAKURA KIDS</div>
-  <button class="btn btn-play" onclick="showScreen('levelScreen')">▶ PLAY</button><br>
+  <button class="btn btn-play" onclick="showScreen('levelScreen');if(bgmPref&&!bgmOn)startBGM()">▶ PLAY</button><br>
   <button class="btn btn-ghost" onclick="showScreen('adminScreen');initAdmin()">⚙ 単語管理</button>
   <div style="margin-top:1.5rem">
     <a href="index.html" style="color:#444;font-size:.78rem;text-decoration:none">← ホームに戻る</a>
@@ -233,6 +238,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#06071a;color:#fff;
     <div id="comboEl"></div>
     <div id="timerWrap"><div id="timerBar"></div></div>
     <div id="timerTxt">60</div>
+    <button id="bgmBtn" class="bgm-btn on" onclick="toggleBGM()" title="BGM ON/OFF">♪</button>
   </div>
   <div id="gameArea"></div>
   <div id="choicesArea">
@@ -527,6 +533,7 @@ let lastTs = null;
 function startGame(lv) {
   curLevel = lv;
   showScreen('gameScreen');
+  if (bgmPref && !bgmOn) startBGM();
 
   score = 0; combo = 0; maxCombo = 0; correct = 0; wrong = 0; miss = 0;
   timeLeft = TOTAL_T; locked = false; running = true;
@@ -920,6 +927,158 @@ function sndMiss() {
 
 // Unlock AudioContext on first touch (required on iOS/mobile)
 document.addEventListener('pointerdown', () => { try { ac(); } catch(e) {} }, { once: true });
+
+// ══════════════════════════════════════════════════════════════
+//  BACKGROUND MUSIC  (procedural — no external files)
+// ══════════════════════════════════════════════════════════════
+// Chord progression: Am7 → Fmaj7 → Cmaj7 → G7 (loops every 8 bars)
+const BGM_BPM = 82;
+const BGM_BEAT = 60 / BGM_BPM;
+const BGM_BAR  = BGM_BEAT * 4;
+const BGM_BPC  = 2; // bars per chord
+
+const BGM_PROG = [
+  { // Am7 — dark, mysterious root
+    pad:  [110.00, 220.00, 261.63, 329.63, 392.00],
+    arp:  [329.63, 392.00, 440.00, 523.25, 440.00, 392.00, 329.63, 261.63],
+    bass: 55.00
+  },
+  { // Fmaj7 — warm lift
+    pad:  [174.61, 220.00, 261.63, 349.23],
+    arp:  [261.63, 349.23, 440.00, 349.23, 261.63, 220.00, 261.63, 349.23],
+    bass: 87.31
+  },
+  { // Cmaj7 — bright resolve
+    pad:  [130.81, 261.63, 329.63, 392.00, 493.88],
+    arp:  [261.63, 329.63, 392.00, 523.25, 392.00, 329.63, 392.00, 329.63],
+    bass: 65.41
+  },
+  { // G7 — tension, leads back to Am
+    pad:  [98.00, 196.00, 246.94, 293.66, 369.99],
+    arp:  [246.94, 293.66, 369.99, 392.00, 369.99, 293.66, 246.94, 196.00],
+    bass: 98.00
+  }
+];
+const BGM_LOOP = BGM_PROG.length * BGM_BPC;
+
+let bgmOn  = false, bgmTimer = null, bgmNextT = 0, bgmBar = 0;
+let _revBus = null;
+
+function getRevBus() {
+  if (_revBus) return _revBus;
+  const ctx = ac();
+  // Simple tape-delay reverb: delay → lowpass → feedback → output
+  const delay  = ctx.createDelay(1.5);
+  const fbGain = ctx.createGain();  fbGain.gain.value = 0.38;
+  const lpFilt = ctx.createBiquadFilter(); lpFilt.type = 'lowpass'; lpFilt.frequency.value = 1600;
+  const outGain = ctx.createGain();  outGain.gain.value = 0.4;
+  delay.connect(lpFilt); lpFilt.connect(fbGain); fbGain.connect(delay);
+  delay.connect(outGain); outGain.connect(ctx.destination);
+  _revBus = delay;
+  return _revBus;
+}
+
+function bgmPad(ch, t, dur) {
+  const ctx = ac(), rev = getRevBus();
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(0.036, t + 0.9);
+  g.gain.setValueAtTime(0.036, t + dur - 0.7);
+  g.gain.linearRampToValueAtTime(0, t + dur + 0.15);
+  g.connect(ctx.destination);
+  g.connect(rev); // wet send
+  ch.pad.forEach(f => {
+    [1, 1.0035, 2, 2.005].forEach(mult => { // octave doublings + slight detune
+      const o = ctx.createOscillator();
+      o.type = 'sine'; o.frequency.value = f * mult;
+      // upper octaves quieter
+      const og = ctx.createGain(); og.gain.value = mult > 1.5 ? 0.45 : 1;
+      o.connect(og); og.connect(g);
+      o.start(t); o.stop(t + dur + 0.2);
+    });
+  });
+}
+
+function bgmBass(ch, t, dur) {
+  const ctx = ac();
+  const filt = ctx.createBiquadFilter(); filt.type = 'lowpass'; filt.frequency.value = 260;
+  const g = ctx.createGain();
+  g.connect(filt); filt.connect(ctx.destination);
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(0.13, t + 0.12);
+  g.gain.setValueAtTime(0.13, t + dur - 0.2);
+  g.gain.linearRampToValueAtTime(0, t + dur);
+  // root + octave
+  [ch.bass, ch.bass * 2].forEach((f, i) => {
+    const o = ctx.createOscillator(); o.type = 'triangle'; o.frequency.value = f;
+    const og = ctx.createGain(); og.gain.value = i === 0 ? 1 : 0.35;
+    o.connect(og); og.connect(g);
+    o.start(t); o.stop(t + dur + 0.1);
+  });
+}
+
+function bgmArp(ch, t) {
+  const ctx = ac(), rev = getRevBus();
+  const eighth = BGM_BEAT * 0.5;
+  ch.arp.forEach((f, i) => {
+    const nt = t + i * eighth;
+    const g = ctx.createGain();
+    g.connect(ctx.destination);
+    g.connect(rev);
+    g.gain.setValueAtTime(0, nt);
+    g.gain.linearRampToValueAtTime(0.02, nt + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, nt + eighth * 0.72);
+    const o = ctx.createOscillator(); o.type = 'sine'; o.frequency.value = f;
+    o.connect(g); o.start(nt); o.stop(nt + eighth);
+  });
+}
+
+function bgmSchedule() {
+  if (!bgmOn) return;
+  const ctx = ac();
+  while (bgmNextT < ctx.currentTime + 0.4) {
+    const barInLoop  = bgmBar % BGM_LOOP;
+    const chordIdx   = Math.floor(barInLoop / BGM_BPC);
+    const barInChord = barInLoop % BGM_BPC;
+    const ch = BGM_PROG[chordIdx];
+    if (barInChord === 0) { bgmPad(ch, bgmNextT, BGM_BAR * BGM_BPC); bgmBass(ch, bgmNextT, BGM_BAR * BGM_BPC); }
+    bgmArp(ch, bgmNextT);
+    bgmNextT += BGM_BAR;
+    bgmBar++;
+  }
+  bgmTimer = setTimeout(bgmSchedule, 150);
+}
+
+function startBGM() {
+  if (bgmOn) return;
+  bgmOn = true;
+  bgmNextT = ac().currentTime + 0.05;
+  bgmBar = 0;
+  bgmSchedule();
+  updateBGMBtn();
+}
+
+function stopBGM() {
+  bgmOn = false;
+  if (bgmTimer) { clearTimeout(bgmTimer); bgmTimer = null; }
+  updateBGMBtn();
+}
+
+let bgmPref = localStorage.getItem('wf_bgm') !== '0'; // default on
+
+function toggleBGM() {
+  bgmOn ? stopBGM() : startBGM();
+  bgmPref = bgmOn;
+  localStorage.setItem('wf_bgm', bgmPref ? '1' : '0');
+}
+
+function updateBGMBtn() {
+  const btn = document.getElementById('bgmBtn');
+  if (!btn) return;
+  btn.textContent = bgmOn ? '♪' : '♪';
+  btn.classList.toggle('on', bgmOn);
+  btn.style.opacity = bgmOn ? '1' : '.45';
+}
 
 // ══════════════════════════════════════════════════════════════
 //  UTILS
