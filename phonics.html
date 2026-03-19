@@ -144,6 +144,14 @@
   .heart { font-size: 26px; transition: transform 0.3s; }
   .heart.lost { opacity: 0.2; transform: scale(0.8); }
 
+  .hud-home {
+    background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.25);
+    border-radius: 20px; color: #fff; font-size: 13px; font-weight: 700;
+    padding: 6px 14px; cursor: pointer; text-decoration: none;
+    transition: background .2s; display: inline-flex; align-items: center; gap: 4px;
+  }
+  .hud-home:hover { background: rgba(255,255,255,.2); }
+
   .hud-level {
     font-size: 18px;
     font-weight: 700;
@@ -495,6 +503,7 @@
 <!-- ── GAME SCREEN ──────────────────────────────────── -->
 <div class="screen hidden" id="gameScreen">
   <div id="hud">
+    <button class="hud-home" onclick="if(confirm('ホームに戻りますか？'))location.href='index.html'">🏠 ホーム</button>
     <div class="hud-score">⭐ <span id="scoreNum">0</span></div>
     <div class="hud-lives" id="livesRow"></div>
     <div class="hud-level" id="levelLabel">Level 1</div>
