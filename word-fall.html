@@ -91,13 +91,13 @@ html,body{width:100%;height:100%;overflow:hidden;background:#06071a;color:#fff;
   transition:opacity .3s,transform .3s}
 
 /* choices */
-#choicesArea{width:100%;padding:.65rem;display:grid;grid-template-columns:1fr 1fr;
-  gap:.5rem;background:rgba(0,0,0,.65);backdrop-filter:blur(10px);
+#choicesArea{width:100%;padding:.9rem;display:grid;grid-template-columns:1fr 1fr;
+  gap:.75rem;background:rgba(0,0,0,.65);backdrop-filter:blur(10px);
   flex-shrink:0;z-index:20}
-.cbtn{padding:.82rem .45rem;background:rgba(255,255,255,.055);
-  border:1px solid rgba(255,255,255,.11);border-radius:12px;
-  color:#ddd;font-size:.95rem;font-weight:600;cursor:pointer;
-  transition:all .12s;text-align:center;min-height:52px;position:relative;overflow:hidden}
+.cbtn{padding:1.25rem .65rem;background:rgba(255,255,255,.055);
+  border:1px solid rgba(255,255,255,.11);border-radius:16px;
+  color:#ddd;font-size:1.42rem;font-weight:600;cursor:pointer;
+  transition:all .12s;text-align:center;min-height:78px;position:relative;overflow:hidden}
 .cbtn:not(.chide):hover{background:rgba(124,58,237,.22);border-color:rgba(124,58,237,.5)}
 .cbtn:not(.chide):active{transform:scale(.95)}
 .cbtn.chide{opacity:0;pointer-events:none}
@@ -178,7 +178,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#06071a;color:#fff;
 @media(max-width:400px){
   .logo{font-size:2.3rem}
   .fword{font-size:1.1rem;padding:.4rem 1rem}
-  .cbtn{font-size:.85rem;min-height:48px}
+  .cbtn{font-size:1.1rem;min-height:65px}
   .lv-card{width:115px;padding:1.1rem .7rem}
 }
 </style>
