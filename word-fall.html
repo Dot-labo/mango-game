@@ -633,6 +633,7 @@ function spawnWord(gaH) {
   document.getElementById('gameArea').appendChild(el);
 
   fw = {word, xPct, yPct: -10, el};
+  speakWord(word.en);
 }
 
 function handleChoice(idx) {
@@ -935,6 +936,36 @@ function sndMiss() {
   g.gain.setValueAtTime(0.18, t);
   g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
   osc.start(t); osc.stop(t + 0.55);
+}
+
+// ── Text-to-Speech ────────────────────────────────────────────
+let _ttsVoice = null;
+
+// Pick the best English voice available
+function getTTSVoice() {
+  if (_ttsVoice) return _ttsVoice;
+  const voices = speechSynthesis.getVoices();
+  // Prefer en-US/en-GB, then any English voice
+  _ttsVoice = voices.find(v => v.lang === 'en-US' && !v.localService === false)
+    || voices.find(v => v.lang === 'en-US')
+    || voices.find(v => v.lang === 'en-GB')
+    || voices.find(v => v.lang.startsWith('en'))
+    || voices[0];
+  return _ttsVoice;
+}
+// Voices load asynchronously on some browsers
+speechSynthesis.onvoiceschanged = () => { _ttsVoice = null; };
+
+function speakWord(text) {
+  if (!window.speechSynthesis) return;
+  speechSynthesis.cancel(); // stop any previous utterance
+  const u = new SpeechSynthesisUtterance(text);
+  u.voice = getTTSVoice();
+  u.lang  = 'en-US';
+  u.rate  = 0.88;   // slightly slower = clearer for learners
+  u.pitch = 1.0;
+  u.volume = 1.0;
+  speechSynthesis.speak(u);
 }
 
 // Unlock AudioContext on first touch (required on iOS/mobile)
