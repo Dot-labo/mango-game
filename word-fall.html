@@ -560,8 +560,9 @@ function tickGame(ts) {
   const gaH  = ga.clientHeight;
   const spd  = SPEEDS[curLevel]; // % per second
 
-  // Spawn if no word
-  if (!fw) { spawnWord(gaH); return; }
+  // Spawn if no word (not during locked feedback period)
+  if (!fw && !locked) { spawnWord(gaH); return; }
+  if (!fw) return;
 
   // Advance position
   fw.yPct += spd * dt;
@@ -582,13 +583,13 @@ function tickGame(ts) {
   }
 
   // Miss
-  if (fw.yPct >= 102) {
+  if (fw.yPct >= 95) {
     onMiss();
   }
 }
 
 function spawnWord(gaH) {
-  if (wIdx >= wordQueue.length) return;
+  if (gaH <= 0 || wIdx >= wordQueue.length) return;
   const word = wordQueue[wIdx++];
   fwCol = 1 - fwCol; // alternate columns
   const xPct = fwCol === 0 ? 25 : 75;
@@ -639,6 +640,7 @@ function onCorrect(btn) {
 
   btn.classList.add('cor');
   doFlash('#4ade80');
+  sndCorrect(combo);
 
   const rect = btn.getBoundingClientRect();
   spawnParts(rect.left + rect.width / 2, rect.top + rect.height / 2);
@@ -649,7 +651,7 @@ function onCorrect(btn) {
   setTimeout(() => { if (fw && fw.el && fw.el.parentNode) fw.el.parentNode.removeChild(fw.el); }, 350);
   fw = null;
 
-  setTimeout(() => { btn.classList.remove('cor'); setBtns([]); locked = false; updateHUD(); }, 320);
+  setTimeout(() => { btn.classList.remove('cor'); locked = false; updateHUD(); }, 320);
   updateHUD();
 }
 
@@ -661,6 +663,7 @@ function onWrong(btn) {
 
   btn.classList.add('wrng');
   doFlash('#f87171');
+  sndWrong();
   showTimePenalty('-' + PEN_WRN + 's');
 
   setTimeout(() => { btn.classList.remove('wrng'); locked = false; updateHUD(); }, 420);
@@ -676,6 +679,7 @@ function onMiss() {
   fw = null;
 
   doFlash('#f97316');
+  sndMiss();
   showTimePenalty('-' + PEN_MISS + 's');
   setBtns([]);
   updateHUD();
@@ -864,6 +868,56 @@ function resetDefaults() {
   if (!confirm('デフォルトの単語リストに戻しますか？\n（現在の単語は削除されます）')) return;
   wDB[adminLv] = JSON.parse(JSON.stringify(DEFAULT_DB[adminLv])); saveDB(); renderAdmin();
 }
+
+// ══════════════════════════════════════════════════════════════
+//  SOUND  (Web Audio API — no external files needed)
+// ══════════════════════════════════════════════════════════════
+let _ac = null;
+function ac() {
+  if (!_ac) _ac = new (window.AudioContext || window.webkitAudioContext)();
+  if (_ac.state === 'suspended') _ac.resume();
+  return _ac;
+}
+
+function playTone(freq, type, vol, attack, decay, start) {
+  const ctx = ac(), t = ctx.currentTime + (start || 0);
+  const osc = ctx.createOscillator();
+  const g   = ctx.createGain();
+  osc.connect(g); g.connect(ctx.destination);
+  osc.type = type; osc.frequency.setValueAtTime(freq, t);
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(vol, t + attack);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + attack + decay);
+  osc.start(t); osc.stop(t + attack + decay + 0.05);
+}
+
+function sndCorrect(combo) {
+  // Glass-like ascending chime, higher pitch with combo
+  const base = combo >= 5 ? 659 : combo >= 3 ? 587 : 523;
+  playTone(base,        'sine',     0.22, 0.01, 0.28, 0);
+  playTone(base * 1.25, 'sine',     0.18, 0.01, 0.22, 0.07);
+  if (combo >= 3) playTone(base * 1.5, 'sine', 0.14, 0.01, 0.2, 0.14);
+}
+
+function sndWrong() {
+  playTone(220, 'sawtooth', 0.18, 0.005, 0.15, 0);
+  playTone(165, 'sawtooth', 0.12, 0.005, 0.12, 0.08);
+}
+
+function sndMiss() {
+  const ctx = ac(), t = ctx.currentTime;
+  const osc = ctx.createOscillator(), g = ctx.createGain();
+  osc.connect(g); g.connect(ctx.destination);
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(300, t);
+  osc.frequency.exponentialRampToValueAtTime(80, t + 0.5);
+  g.gain.setValueAtTime(0.18, t);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+  osc.start(t); osc.stop(t + 0.55);
+}
+
+// Unlock AudioContext on first touch (required on iOS/mobile)
+document.addEventListener('pointerdown', () => { try { ac(); } catch(e) {} }, { once: true });
 
 // ══════════════════════════════════════════════════════════════
 //  UTILS
