@@ -408,6 +408,10 @@ let bgParts = [];
 let rareStars = [], rareSpawnTimer = 4, bgLastTs = null;
 const RARE_COLORS = ['#ffd700','#ff9de2','#7df9ff','#ccaaff','#adffc8','#fffde7'];
 
+// ── Surprise system ───────────────────────────────────────────
+let earthObj = null;          // Earth surprise
+let lastComboSurprise = 0;    // last combo count that triggered rainbow
+
 function resizeCanvases() {
   bgC.width = pC.width = window.innerWidth;
   bgC.height = pC.height = window.innerHeight;
@@ -567,6 +571,172 @@ function drawBG(t) {
 
   // rare stars
   drawRareStars(dt, t);
+
+  // earth surprise
+  drawEarth(dt, t);
+}
+
+// ══════════════════════════════════════════════════════════════
+//  SURPRISE SYSTEM
+// ══════════════════════════════════════════════════════════════
+function initEarth() {
+  if (earthObj) return;
+  const W = bgC.width, H = bgC.height;
+  const r = Math.min(W, H) * 0.11;
+  earthObj = {
+    x: W * 0.5, y: H * 0.36, r: Math.min(r, 72),
+    alpha: 0, rot: 0, cloudRot: 0,
+    // Fixed cloud positions (generated once)
+    clouds: [
+      { cx:-0.15, cy:-0.55, rx:0.28, ry:0.08, a: 0.3 },
+      { cx: 0.45, cy:-0.05, rx:0.22, ry:0.07, a:-0.2 },
+      { cx:-0.40, cy: 0.30, rx:0.24, ry:0.07, a: 0.4 },
+      { cx: 0.10, cy: 0.58, rx:0.20, ry:0.06, a:-0.1 },
+    ]
+  };
+  // Announce
+  showSurpriseMsg('🌍 地球が現れた！');
+}
+
+function drawEarth(dt, t) {
+  if (!earthObj) return;
+  const e = earthObj;
+  e.alpha = Math.min(0.92, e.alpha + dt * 0.28);
+  e.rot += dt * 0.09;
+  e.cloudRot += dt * 0.038;
+  const { x, y, r } = e;
+
+  bgX.save();
+
+  // Outer atmosphere glow
+  bgX.globalAlpha = e.alpha * 0.42;
+  const atmG = bgX.createRadialGradient(x, y, r * 0.75, x, y, r * 1.55);
+  atmG.addColorStop(0, 'rgba(80,190,255,0.55)');
+  atmG.addColorStop(0.6, 'rgba(60,120,255,0.18)');
+  atmG.addColorStop(1, 'transparent');
+  bgX.fillStyle = atmG;
+  bgX.beginPath(); bgX.arc(x, y, r * 1.55, 0, Math.PI * 2); bgX.fill();
+
+  bgX.globalAlpha = e.alpha;
+  bgX.translate(x, y);
+
+  // Clip to sphere
+  bgX.save();
+  bgX.beginPath(); bgX.arc(0, 0, r, 0, Math.PI * 2); bgX.clip();
+
+  // Ocean
+  const oG = bgX.createRadialGradient(-r*0.28, -r*0.22, 0, 0, 0, r);
+  oG.addColorStop(0, '#5aaee8'); oG.addColorStop(0.55, '#1f68b8'); oG.addColorStop(1, '#0b3870');
+  bgX.fillStyle = oG; bgX.fillRect(-r, -r, r * 2, r * 2);
+
+  // Land (rotates with planet)
+  bgX.rotate(e.rot);
+  bgX.fillStyle = '#3aaa5c';
+  [[-0.08,-0.22, 0.36,0.28, 0.3],
+   [-0.52, 0.06, 0.21,0.30,-0.2],
+   [ 0.44, 0.33, 0.17,0.11, 0.4],
+   [ 0.08, 0.55, 0.20,0.13,-0.1]].forEach(([lx,ly,rx,ry,a]) => {
+    bgX.beginPath(); bgX.ellipse(lx*r, ly*r, rx*r, ry*r, a, 0, Math.PI*2); bgX.fill();
+  });
+  // Snow cap
+  bgX.fillStyle = 'rgba(235,248,255,0.82)';
+  bgX.beginPath(); bgX.ellipse(0, -r*0.84, r*0.26, r*0.13, 0, 0, Math.PI*2); bgX.fill();
+
+  // Clouds (rotate slower)
+  bgX.rotate(-e.rot + e.cloudRot);
+  bgX.fillStyle = 'rgba(255,255,255,0.52)';
+  e.clouds.forEach(c => {
+    bgX.beginPath(); bgX.ellipse(c.cx*r, c.cy*r, c.rx*r, c.ry*r, c.angle, 0, Math.PI*2); bgX.fill();
+  });
+  bgX.restore(); // end clip
+
+  // Highlight shine
+  bgX.globalAlpha = e.alpha * 0.28;
+  const shG = bgX.createRadialGradient(-r*0.32,-r*0.38, 0, -r*0.3,-r*0.35, r*0.65);
+  shG.addColorStop(0, 'rgba(255,255,255,0.75)'); shG.addColorStop(1, 'transparent');
+  bgX.fillStyle = shG;
+  bgX.beginPath(); bgX.arc(0, 0, r, 0, Math.PI*2); bgX.fill();
+
+  bgX.restore();
+}
+
+// Rainbow meteor shower — triggered on combo milestones
+function triggerRainbowShower() {
+  const W = bgC.width;
+  const colors = ['#ff4455','#ff9900','#ffee00','#44ee44','#44aaff','#dd44ff','#ff88cc'];
+  colors.forEach((color, i) => {
+    setTimeout(() => {
+      rareStars.push({
+        type: 'shoot',
+        x: W * (0.1 + Math.random() * 0.8), y: -10,
+        vx: (Math.random() - 0.5) * 240,
+        vy: 180 + Math.random() * 120,
+        life: 1.1, max: 1.1,
+        color, tail: 65
+      });
+    }, i * 90);
+  });
+}
+
+// Firework burst — triggered on score milestones
+function triggerFirework() {
+  const W = bgC.width, H = bgC.height;
+  const x = W * (0.25 + Math.random() * 0.5);
+  const y = H * (0.15 + Math.random() * 0.35);
+  const fwColors = ['#ffd700','#ff6ad5','#c774e8','#ad8cff','#8795e8','#7af8d0','#f8f770'];
+  for (let i = 0; i < 55; i++) {
+    const ang = (i / 55) * Math.PI * 2, spd = 5 + Math.random() * 6;
+    parts.push({
+      x, y,
+      vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd - 2,
+      r: Math.random() * 2.5 + 0.8, a: 1,
+      dec: Math.random() * 0.025 + 0.018,
+      col: fwColors[Math.floor(Math.random() * fwColors.length)],
+      g: 0.12
+    });
+  }
+}
+
+// Surprise message popup (floats up and fades)
+function showSurpriseMsg(txt) {
+  const el = document.createElement('div');
+  el.textContent = txt;
+  el.style.cssText = `position:fixed;left:50%;top:35%;transform:translateX(-50%);
+    font-size:1.3rem;font-weight:900;color:#fff;z-index:300;pointer-events:none;
+    text-shadow:0 0 20px #ffd700,0 2px 4px rgba(0,0,0,.8);
+    animation:popUp 2.5s ease-out forwards`;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2600);
+}
+
+// Check all surprise conditions — called after each correct answer
+function checkSurprises() {
+  // 🌍 Earth: no wrong, no miss, ≤12s left, at least 5 correct
+  if (!earthObj && wrong === 0 && miss === 0 && timeLeft <= 12 && correct >= 5) {
+    initEarth();
+    triggerFirework(); triggerFirework();
+  }
+
+  // 🌈 Rainbow shower: every 5 combos
+  if (combo >= 5 && combo % 5 === 0 && combo !== lastComboSurprise) {
+    lastComboSurprise = combo;
+    triggerRainbowShower();
+    showSurpriseMsg(combo >= 10 ? `🌟 ${combo} COMBO!!` : `✨ ${combo} COMBO!`);
+  }
+}
+
+// Score milestone check — called after score update
+let lastMilestone = 0;
+function checkMilestone() {
+  const milestones = [300, 600, 1000, 1500, 2000, 3000];
+  for (const m of milestones) {
+    if (score >= m && lastMilestone < m) {
+      lastMilestone = m;
+      triggerFirework();
+      showSurpriseMsg(`⭐ ${m.toLocaleString()} pts!`);
+      break;
+    }
+  }
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -668,6 +838,7 @@ function startGame(lv) {
   score = 0; combo = 0; maxCombo = 0; correct = 0; wrong = 0; miss = 0;
   timeLeft = TOTAL_T; locked = false; running = true;
   fw = null; fwCol = 0; choices = []; activePhase = 0; lastTs = null;
+  earthObj = null; lastComboSurprise = 0; lastMilestone = 0;
 
   document.getElementById('gameArea').innerHTML = '';
   setBtns([]);
@@ -718,6 +889,12 @@ function tickGame(ts) {
     // Hide one distractor per phase increase
     const vis = choices.filter(c => !c.isCorrect && !c.hidden);
     if (vis.length > 0) { vis[0].hidden = true; setBtns(choices); }
+  }
+
+  // Earth surprise: check on every tick (timer-based trigger)
+  if (!earthObj && wrong === 0 && miss === 0 && timeLeft <= 12 && correct >= 5) {
+    initEarth();
+    triggerFirework(); triggerFirework();
   }
 
   // Mid-point re-pronunciation
@@ -782,6 +959,8 @@ function onCorrect(btn) {
   const base = y < 25 ? 100 : y < 50 ? 75 : y < 75 ? 50 : 25;
   const pts  = base * Math.min(combo, 5);
   score += pts;
+  checkSurprises();
+  checkMilestone();
 
   btn.classList.add('cor');
   doFlash('#4ade80');
