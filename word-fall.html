@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Word Fall — SAKURA KIDS</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;background:#06071a;color:#fff;
+  font-family:'Segoe UI',system-ui,sans-serif;touch-action:manipulation}
+
+/* ── CANVAS ─────────────────────────── */
+#bgC,#pC{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none}
+#bgC{z-index:1}
+#pC{z-index:100}
+#flash{position:fixed;inset:0;pointer-events:none;z-index:90;opacity:0}
+
+/* ── SCREENS ─────────────────────────── */
+.screen{position:fixed;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;z-index:10;transition:opacity .3s}
+.screen.hidden{opacity:0;pointer-events:none}
+
+/* ── TITLE ───────────────────────────── */
+.logo{font-size:3rem;font-weight:900;letter-spacing:.03em;
+  background:linear-gradient(135deg,#a78bfa 0%,#60a5fa 50%,#34d399 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  text-align:center;line-height:1.1}
+.logo-sub{color:#7070a0;font-size:.85rem;letter-spacing:.25em;text-transform:uppercase;
+  margin:.4rem 0 2.5rem;text-align:center}
+.btn{display:inline-flex;align-items:center;justify-content:center;
+  padding:.85rem 2.4rem;border:none;border-radius:50px;cursor:pointer;
+  font-size:1rem;font-weight:700;letter-spacing:.05em;margin:.3rem;
+  transition:transform .1s,box-shadow .2s;text-decoration:none}
+.btn:active{transform:scale(.96)}
+.btn-play{background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;
+  font-size:1.15rem;padding:1rem 3.2rem;
+  box-shadow:0 0 40px rgba(124,58,237,.45)}
+.btn-play:hover{box-shadow:0 0 60px rgba(124,58,237,.7)}
+.btn-ghost{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);color:#aaa}
+.btn-ghost:hover{background:rgba(255,255,255,.12);color:#fff}
+.btn-sm{padding:.35rem .7rem;font-size:.78rem;font-weight:600;border:none;
+  border-radius:7px;cursor:pointer;transition:all .15s}
+.btn-del{background:rgba(248,113,113,.13);color:#f87171}
+.btn-del:hover{background:rgba(248,113,113,.28)}
+.btn-edit{background:rgba(160,132,255,.13);color:#c4b5fd}
+.btn-edit:hover{background:rgba(160,132,255,.28)}
+
+/* ── LEVEL SELECT ────────────────────── */
+.screen-title{font-size:1.35rem;font-weight:700;color:#ccc;margin-bottom:.4rem;text-align:center}
+.lv-grid{display:flex;gap:1rem;flex-wrap:wrap;justify-content:center;margin:1.8rem 0}
+.lv-card{width:140px;padding:1.5rem 1rem;text-align:center;
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.09);
+  border-radius:18px;cursor:pointer;transition:all .2s}
+.lv-card:hover{transform:translateY(-6px);background:rgba(124,58,237,.15);
+  border-color:rgba(124,58,237,.5);box-shadow:0 12px 40px rgba(124,58,237,.25)}
+.lv-icon{font-size:2.4rem;margin-bottom:.4rem}
+.lv-label{font-weight:800;font-size:1.05rem;margin-bottom:.2rem}
+.lv-desc{font-size:.72rem;color:#555}
+.mode-row{display:flex;gap:.7rem;flex-wrap:wrap;justify-content:center;margin-bottom:1rem}
+.mode-btn{padding:.5rem 1.2rem;border-radius:10px;cursor:pointer;font-size:.85rem;font-weight:600;
+  border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);
+  transition:all .2s;color:#aaa}
+.mode-btn.active{background:rgba(124,58,237,.3);border-color:#7c3aed;color:#c4b5fd}
+.mode-btn.locked{opacity:.4;cursor:default}
+.unlock-hint{font-size:.72rem;color:#555;margin-top:.2rem}
+
+/* ── GAME SCREEN ─────────────────────── */
+#gameScreen{justify-content:flex-start}
+#hud{width:100%;padding:.55rem 1rem;display:flex;align-items:center;gap:.8rem;
+  background:rgba(0,0,0,.55);backdrop-filter:blur(8px);z-index:20;flex-shrink:0;min-height:50px}
+#scoreEl{font-size:1.2rem;font-weight:900;color:#fcd34d;min-width:75px}
+#comboEl{font-size:.8rem;font-weight:700;min-width:72px;color:#a78bfa}
+#timerWrap{flex:1;height:9px;background:rgba(255,255,255,.09);border-radius:5px;overflow:hidden}
+#timerBar{height:100%;width:100%;border-radius:5px;
+  background:linear-gradient(90deg,#4ade80,#60a5fa);transition:width .1s linear}
+#timerTxt{font-size:1rem;font-weight:700;min-width:32px;text-align:right}
+#gameArea{flex:1;width:100%;position:relative;overflow:hidden}
+
+/* falling word */
+.fword{position:absolute;transform:translateX(-50%);
+  padding:.5rem 1.3rem;background:rgba(10,10,35,.72);
+  border:1.5px solid rgba(160,132,255,.38);border-radius:14px;
+  font-size:1.35rem;font-weight:800;letter-spacing:.05em;
+  color:#ddd8ff;text-shadow:0 0 18px rgba(160,132,255,.7);
+  box-shadow:0 0 22px rgba(124,58,237,.2),inset 0 0 14px rgba(124,58,237,.04);
+  backdrop-filter:blur(5px);white-space:nowrap;pointer-events:none;user-select:none}
+.fword.urgent{border-color:rgba(248,113,113,.65);color:#fca5a5;
+  text-shadow:0 0 18px rgba(248,113,113,.75);box-shadow:0 0 22px rgba(248,113,113,.25)}
+.fword.answered{opacity:0;transform:translateX(-50%) scale(1.25);
+  transition:opacity .3s,transform .3s}
+
+/* choices */
+#choicesArea{width:100%;padding:.65rem;display:grid;grid-template-columns:1fr 1fr;
+  gap:.5rem;background:rgba(0,0,0,.65);backdrop-filter:blur(10px);
+  flex-shrink:0;z-index:20}
+.cbtn{padding:.82rem .45rem;background:rgba(255,255,255,.055);
+  border:1px solid rgba(255,255,255,.11);border-radius:12px;
+  color:#ddd;font-size:.95rem;font-weight:600;cursor:pointer;
+  transition:all .12s;text-align:center;min-height:52px;position:relative;overflow:hidden}
+.cbtn:not(.chide):hover{background:rgba(124,58,237,.22);border-color:rgba(124,58,237,.5)}
+.cbtn:not(.chide):active{transform:scale(.95)}
+.cbtn.chide{opacity:0;pointer-events:none}
+.cbtn.cor{background:rgba(74,222,128,.2)!important;border-color:#4ade80!important;
+  color:#4ade80!important;box-shadow:0 0 18px rgba(74,222,128,.4)!important}
+.cbtn.wrng{background:rgba(248,113,113,.2)!important;border-color:#f87171!important;
+  color:#f87171!important;animation:shake .32s}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-9px)}60%{transform:translateX(9px)}}
+
+/* score popup */
+.spop{position:fixed;pointer-events:none;z-index:200;
+  font-size:1.4rem;font-weight:900;animation:popUp 1.3s ease-out forwards}
+@keyframes popUp{0%{opacity:1;transform:translateY(0) scale(1)}
+  15%{transform:translateY(-12px) scale(1.15)}100%{opacity:0;transform:translateY(-75px) scale(.85)}}
+
+/* ── RESULT ──────────────────────────── */
+.res-pts{font-size:4.5rem;font-weight:900;
+  background:linear-gradient(135deg,#fcd34d,#f97316);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1}
+.res-stats{display:flex;gap:.9rem;flex-wrap:wrap;justify-content:center;margin:1.4rem 0 2rem}
+.sbox{text-align:center;padding:.9rem 1.4rem;
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:14px}
+.sval{font-size:1.9rem;font-weight:800}
+.slbl{font-size:.7rem;color:#555;margin-top:.2rem;letter-spacing:.05em;text-transform:uppercase}
+
+/* ── ADMIN ───────────────────────────── */
+#adminScreen{justify-content:flex-start}
+.admin-hdr{width:100%;padding:.8rem 1.2rem;display:flex;align-items:center;gap:.8rem;
+  background:rgba(0,0,0,.55);backdrop-filter:blur(8px);flex-shrink:0}
+.admin-hdr h2{font-size:1.1rem;font-weight:700;flex:1}
+.admin-body{flex:1;width:100%;overflow-y:auto;padding:1rem;-webkit-overflow-scrolling:touch}
+.tabs{display:flex;gap:.4rem;margin-bottom:.9rem}
+.tab{padding:.42rem 1rem;border-radius:8px;cursor:pointer;font-size:.82rem;font-weight:600;
+  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);transition:all .2s;color:#888}
+.tab.active{background:rgba(124,58,237,.3);border-color:#7c3aed;color:#c4b5fd}
+.add-row{display:flex;gap:.4rem;margin-bottom:.7rem;flex-wrap:wrap;align-items:center}
+.add-row input{flex:1;min-width:90px;max-width:155px;
+  padding:.48rem .7rem;background:rgba(255,255,255,.07);
+  border:1px solid rgba(255,255,255,.14);border-radius:8px;
+  color:#fff;font-size:.88rem}
+.add-row input:focus{outline:none;border-color:#7c3aed}
+.add-row input::placeholder{color:#444}
+.act-row{display:flex;gap:.4rem;margin-bottom:.7rem;flex-wrap:wrap}
+.wcount{font-size:.75rem;color:#444;margin-bottom:.4rem}
+.wrow{display:flex;align-items:center;gap:.45rem;
+  padding:.45rem .3rem;border-bottom:1px solid rgba(255,255,255,.04);font-size:.87rem}
+.wrow:hover{background:rgba(255,255,255,.02);border-radius:6px}
+.wen{font-weight:700;min-width:110px;color:#c4b5fd}
+.wja{flex:1;color:#999}
+.import-box{padding:.9rem;background:rgba(255,255,255,.03);
+  border:1px solid rgba(255,255,255,.07);border-radius:12px;margin-top:.8rem}
+.import-box h4{font-size:.85rem;color:#888;margin-bottom:.55rem}
+.import-box textarea{width:100%;height:110px;background:rgba(0,0,0,.35);
+  border:1px solid rgba(255,255,255,.09);border-radius:8px;
+  color:#fff;font-size:.78rem;padding:.45rem;resize:vertical}
+.import-box textarea:focus{outline:none;border-color:#7c3aed}
+.hint{font-size:.68rem;color:#444;margin:.25rem 0}
+.imp-btns{display:flex;gap:.4rem;margin-top:.45rem;flex-wrap:wrap}
+
+/* edit modal */
+.modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:300;
+  display:flex;align-items:center;justify-content:center}
+.modal-ov.hidden{display:none}
+.modal-box{background:#12132a;border:1px solid rgba(255,255,255,.1);
+  border-radius:16px;padding:1.5rem;width:90%;max-width:380px}
+.modal-box h3{margin-bottom:.9rem;font-size:1rem}
+.modal-box input{width:100%;padding:.55rem .75rem;
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);
+  border-radius:8px;color:#fff;font-size:.88rem;margin-bottom:.45rem}
+.modal-box input:focus{outline:none;border-color:#7c3aed}
+.modal-acts{display:flex;gap:.5rem;margin-top:.9rem;justify-content:flex-end}
+
+@media(max-width:400px){
+  .logo{font-size:2.3rem}
+  .fword{font-size:1.1rem;padding:.4rem 1rem}
+  .cbtn{font-size:.85rem;min-height:48px}
+  .lv-card{width:115px;padding:1.1rem .7rem}
+}
+</style>
+</head>
+<body>
+
+<canvas id="bgC"></canvas>
+<canvas id="pC"></canvas>
+<div id="flash"></div>
+
+<!-- ═══ TITLE ═══════════════════════════════════════════ -->
+<div id="titleScreen" class="screen">
+  <div class="logo">⬇ Word Fall</div>
+  <div class="logo-sub">SAKURA KIDS</div>
+  <button class="btn btn-play" onclick="showScreen('levelScreen')">▶ PLAY</button><br>
+  <button class="btn btn-ghost" onclick="showScreen('adminScreen');initAdmin()">⚙ 単語管理</button>
+  <div style="margin-top:1.5rem">
+    <a href="index.html" style="color:#444;font-size:.78rem;text-decoration:none">← ホームに戻る</a>
+  </div>
+</div>
+
+<!-- ═══ LEVEL SELECT ══════════════════════════════════════ -->
+<div id="levelScreen" class="screen hidden">
+  <div class="screen-title">レベル・モードを選択</div>
+  <div style="color:#444;font-size:.75rem;margin-bottom:1rem">英検対応</div>
+  <div class="lv-grid">
+    <div class="lv-card" onclick="pickLevel('3')">
+      <div class="lv-icon">🟢</div>
+      <div class="lv-label" style="color:#4ade80">3 級</div>
+      <div class="lv-desc">CEFR A2</div>
+    </div>
+    <div class="lv-card" onclick="pickLevel('pre2')">
+      <div class="lv-icon">🔵</div>
+      <div class="lv-label" style="color:#60a5fa">準 2 級</div>
+      <div class="lv-desc">CEFR B1</div>
+    </div>
+    <div class="lv-card" onclick="pickLevel('2')">
+      <div class="lv-icon">🟠</div>
+      <div class="lv-label" style="color:#f97316">2 級</div>
+      <div class="lv-desc">CEFR B2</div>
+    </div>
+  </div>
+  <div style="margin-bottom:.5rem;font-size:.82rem;color:#555">モード</div>
+  <div class="mode-row">
+    <div class="mode-btn active" id="modeReading" onclick="setMode('reading')">📖 Reading</div>
+    <div class="mode-btn locked" id="modeWriting" title="Reading で一定スコアに達するとアンロック">✏ Writing 🔒</div>
+  </div>
+  <div class="unlock-hint" id="unlockHint"></div>
+  <br>
+  <button class="btn btn-ghost" onclick="showScreen('titleScreen')">← 戻る</button>
+</div>
+
+<!-- ═══ GAME ══════════════════════════════════════════════ -->
+<div id="gameScreen" class="screen hidden">
+  <div id="hud">
+    <div id="scoreEl">0</div>
+    <div id="comboEl"></div>
+    <div id="timerWrap"><div id="timerBar"></div></div>
+    <div id="timerTxt">60</div>
+  </div>
+  <div id="gameArea"></div>
+  <div id="choicesArea">
+    <button class="cbtn" id="c0" onclick="handleChoice(0)"></button>
+    <button class="cbtn" id="c1" onclick="handleChoice(1)"></button>
+    <button class="cbtn" id="c2" onclick="handleChoice(2)"></button>
+    <button class="cbtn" id="c3" onclick="handleChoice(3)"></button>
+  </div>
+</div>
+
+<!-- ═══ RESULT ════════════════════════════════════════════ -->
+<div id="resultScreen" class="screen hidden" style="text-align:center">
+  <div style="color:#555;font-size:.85rem;letter-spacing:.12em;margin-bottom:.5rem">GAME OVER</div>
+  <div class="res-pts" id="finalPts">0</div>
+  <div style="color:#444;font-size:.8rem;margin-bottom:.2rem">points</div>
+  <div style="color:#888;font-size:.82rem;margin-bottom:1rem" id="rankMsg"></div>
+  <div class="res-stats">
+    <div class="sbox"><div class="sval" id="sCor" style="color:#4ade80">0</div><div class="slbl">正解</div></div>
+    <div class="sbox"><div class="sval" id="sWrn" style="color:#f87171">0</div><div class="slbl">ミス</div></div>
+    <div class="sbox"><div class="sval" id="sMis" style="color:#f97316">0</div><div class="slbl">見逃し</div></div>
+    <div class="sbox"><div class="sval" id="sMax" style="color:#a78bfa">0</div><div class="slbl">最大コンボ</div></div>
+  </div>
+  <button class="btn btn-play" style="font-size:1rem;padding:.9rem 2.6rem"
+    onclick="startGame(curLevel)">もう一度</button><br>
+  <button class="btn btn-ghost" onclick="showScreen('levelScreen')">レベル選択</button>
+</div>
+
+<!-- ═══ ADMIN ══════════════════════════════════════════════ -->
+<div id="adminScreen" class="screen hidden">
+  <div class="admin-hdr">
+    <h2>⚙ 単語管理</h2>
+    <button class="btn btn-ghost" style="padding:.38rem .9rem;font-size:.82rem"
+      onclick="showScreen('titleScreen')">← 戻る</button>
+  </div>
+  <div class="admin-body">
+    <div class="tabs">
+      <div class="tab active" id="at3"    onclick="switchTab('3')">3級</div>
+      <div class="tab"        id="atpre2" onclick="switchTab('pre2')">準2級</div>
+      <div class="tab"        id="at2"    onclick="switchTab('2')">2級</div>
+    </div>
+    <div class="add-row">
+      <input type="text" id="newEn" placeholder="英語 (例: dream)" maxlength="60">
+      <input type="text" id="newJa" placeholder="日本語 (例: 夢)" maxlength="40">
+      <button class="btn btn-ghost" style="padding:.45rem .85rem;font-size:.82rem"
+        onclick="addWord()">＋ 追加</button>
+    </div>
+    <div class="act-row">
+      <button class="btn btn-ghost" style="padding:.38rem .8rem;font-size:.78rem"
+        onclick="doExportJSON()">⬇ JSON</button>
+      <button class="btn btn-ghost" style="padding:.38rem .8rem;font-size:.78rem"
+        onclick="doExportCSV()">⬇ CSV</button>
+      <button class="btn btn-ghost" style="padding:.38rem .8rem;font-size:.78rem"
+        onclick="toggleImport()">⬆ インポート</button>
+      <button class="btn btn-ghost" style="padding:.38rem .8rem;font-size:.78rem;color:#f87171"
+        onclick="resetDefaults()">↺ デフォルト</button>
+    </div>
+    <div class="wcount" id="wcount"></div>
+    <div id="wlist"></div>
+    <div class="import-box hidden" id="importBox">
+      <h4>インポート</h4>
+      <div class="hint">JSON形式: [{"en":"word","ja":"意味"}, ...] または CSV: word,意味 (1行1語)</div>
+      <textarea id="importTxt" placeholder='[{"en":"example","ja":"例"}]'></textarea>
+      <div class="imp-btns">
+        <button class="btn btn-ghost" style="padding:.38rem .8rem;font-size:.78rem"
+          onclick="doImportJSON()">JSON取り込み</button>
+        <button class="btn btn-ghost" style="padding:.38rem .8rem;font-size:.78rem"
+          onclick="doImportCSV()">CSV取り込み</button>
+        <button class="btn btn-ghost" style="padding:.38rem .8rem;font-size:.78rem"
+          onclick="toggleImport()">閉じる</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- edit modal -->
+<div class="modal-ov hidden" id="editModal">
+  <div class="modal-box">
+    <h3>単語を編集</h3>
+    <input type="text" id="eEn" placeholder="英語">
+    <input type="text" id="eJa" placeholder="日本語">
+    <div class="modal-acts">
+      <button class="btn btn-ghost" style="padding:.45rem 1rem;font-size:.85rem"
+        onclick="closeEdit()">キャンセル</button>
+      <button class="btn btn-play" style="padding:.45rem 1.1rem;font-size:.85rem"
+        onclick="saveEdit()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+//  WORD DATABASE
+// ══════════════════════════════════════════════════════════════
+const DEFAULT_DB = {
+  "3": [
+    {en:"apple",ja:"りんご"},{en:"school",ja:"学校"},{en:"music",ja:"音楽"},
+    {en:"sport",ja:"スポーツ"},{en:"friend",ja:"友達"},{en:"family",ja:"家族"},
+    {en:"book",ja:"本"},{en:"water",ja:"水"},{en:"animal",ja:"動物"},
+    {en:"food",ja:"食べ物"},{en:"spring",ja:"春"},{en:"summer",ja:"夏"},
+    {en:"winter",ja:"冬"},{en:"flower",ja:"花"},{en:"dream",ja:"夢"},
+    {en:"sky",ja:"空"},{en:"star",ja:"星"},{en:"moon",ja:"月"},
+    {en:"happy",ja:"幸せ"},{en:"color",ja:"色"},{en:"town",ja:"町"},
+    {en:"name",ja:"名前"},{en:"time",ja:"時間"},{en:"love",ja:"愛"},
+    {en:"life",ja:"人生"},{en:"heart",ja:"心"},{en:"ocean",ja:"海"},
+    {en:"forest",ja:"森"},{en:"river",ja:"川"},{en:"bird",ja:"鳥"}
+  ],
+  "pre2": [
+    {en:"freedom",ja:"自由"},{en:"culture",ja:"文化"},{en:"environment",ja:"環境"},
+    {en:"volunteer",ja:"ボランティア"},{en:"tradition",ja:"伝統"},
+    {en:"technology",ja:"技術"},{en:"experience",ja:"経験"},
+    {en:"adventure",ja:"冒険"},{en:"challenge",ja:"挑戦"},
+    {en:"community",ja:"地域社会"},{en:"journey",ja:"旅"},
+    {en:"victory",ja:"勝利"},{en:"treasure",ja:"宝物"},
+    {en:"disaster",ja:"災害"},{en:"courage",ja:"勇気"},
+    {en:"memory",ja:"記憶"},{en:"knowledge",ja:"知識"},
+    {en:"friendship",ja:"友情"},{en:"peaceful",ja:"平和な"},
+    {en:"achieve",ja:"達成する"},{en:"support",ja:"支援する"},
+    {en:"improve",ja:"改善する"},{en:"global",ja:"世界的な"},
+    {en:"creative",ja:"創造的な"},{en:"solution",ja:"解決策"},
+    {en:"connect",ja:"つなぐ"},{en:"modern",ja:"現代の"},
+    {en:"protect",ja:"守る"},{en:"local",ja:"地元の"},{en:"develop",ja:"発展させる"}
+  ],
+  "2": [
+    {en:"accelerate",ja:"加速する"},{en:"circumstance",ja:"状況"},
+    {en:"consequence",ja:"結果"},{en:"diversity",ja:"多様性"},
+    {en:"fundamental",ja:"根本的な"},{en:"grateful",ja:"感謝している"},
+    {en:"hesitate",ja:"ためらう"},{en:"illustrate",ja:"説明する"},
+    {en:"justify",ja:"正当化する"},{en:"maintain",ja:"維持する"},
+    {en:"navigate",ja:"航行する"},{en:"overcome",ja:"克服する"},
+    {en:"perceive",ja:"知覚する"},{en:"recognize",ja:"認識する"},
+    {en:"significant",ja:"重要な"},{en:"transform",ja:"変容させる"},
+    {en:"ultimate",ja:"究極の"},{en:"vulnerable",ja:"脆弱な"},
+    {en:"wisdom",ja:"知恵"},{en:"elaborate",ja:"精巧な"},
+    {en:"contribute",ja:"貢献する"},{en:"emphasize",ja:"強調する"},
+    {en:"evaluate",ja:"評価する"},{en:"generate",ja:"生み出す"},
+    {en:"indicate",ja:"示す"},{en:"numerous",ja:"多数の"},
+    {en:"priority",ja:"優先事項"},{en:"sufficient",ja:"十分な"},
+    {en:"potential",ja:"可能性"},{en:"efficient",ja:"効率的な"}
+  ]
+};
+
+function loadDB() {
+  try { const s = localStorage.getItem('wf_db'); if (s) return JSON.parse(s); } catch(e) {}
+  return JSON.parse(JSON.stringify(DEFAULT_DB));
+}
+function saveDB() { localStorage.setItem('wf_db', JSON.stringify(wDB)); }
+let wDB = loadDB();
+
+// ══════════════════════════════════════════════════════════════
+//  CANVAS + BACKGROUND
+// ══════════════════════════════════════════════════════════════
+const bgC = document.getElementById('bgC'), bgX = bgC.getContext('2d');
+const pC  = document.getElementById('pC'),  pX  = pC.getContext('2d');
+let bgParts = [];
+
+function resizeCanvases() {
+  bgC.width = pC.width = window.innerWidth;
+  bgC.height = pC.height = window.innerHeight;
+  initBgParts();
+}
+
+function initBgParts() {
+  bgParts = [];
+  const n = Math.min(120, Math.floor(window.innerWidth * window.innerHeight / 7000));
+  for (let i = 0; i < n; i++) {
+    bgParts.push({
+      x: Math.random() * bgC.width, y: Math.random() * bgC.height,
+      r: Math.random() * 1.4 + .25,
+      vy: -(Math.random() * .28 + .04),
+      vx: (Math.random() - .5) * .1,
+      a: Math.random() * .55 + .15,
+      h: Math.random() * 60 + 200  // blue-purple hue
+    });
+  }
+}
+
+function drawBG(t) {
+  const W = bgC.width, H = bgC.height;
+  const g = bgX.createRadialGradient(W*.5, H*.25, 0, W*.5, H*.25, W*.9);
+  g.addColorStop(0, '#0d0d2e');
+  g.addColorStop(1, '#06071a');
+  bgX.fillStyle = g; bgX.fillRect(0, 0, W, H);
+
+  // subtle aurora
+  bgX.save();
+  bgX.globalAlpha = .035 + .015 * Math.sin(t * .00025);
+  const ag = bgX.createLinearGradient(0, 0, W, H * .45);
+  ag.addColorStop(0, '#7c3aed'); ag.addColorStop(.5, '#4f46e5'); ag.addColorStop(1, '#0ea5e9');
+  bgX.fillStyle = ag; bgX.fillRect(0, 0, W, H * .45);
+  bgX.restore();
+
+  // particles
+  for (const p of bgParts) {
+    p.x += p.vx; p.y += p.vy;
+    if (p.y < -4) { p.y = bgC.height + 4; p.x = Math.random() * bgC.width; }
+    bgX.beginPath(); bgX.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    bgX.fillStyle = `hsla(${p.h},80%,72%,${p.a})`; bgX.fill();
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  PARTICLE EFFECTS
+// ══════════════════════════════════════════════════════════════
+let parts = [];
+const POP_COLORS = ['#fcd34d','#a78bfa','#60a5fa','#4ade80','#f9a8d4','#ffffff','#f97316'];
+
+function spawnParts(x, y) {
+  const n = 45 + Math.floor(Math.random() * 20);
+  for (let i = 0; i < n; i++) {
+    const ang = Math.random() * Math.PI * 2, spd = Math.random() * 9 + 2.5;
+    parts.push({
+      x, y, vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd - 3.5,
+      r: Math.random() * 3 + .8, a: 1,
+      dec: Math.random() * .03 + .02,
+      col: POP_COLORS[Math.floor(Math.random() * POP_COLORS.length)],
+      g: .22
+    });
+  }
+}
+
+function drawParts() {
+  pX.clearRect(0, 0, pC.width, pC.height);
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const p = parts[i];
+    p.x += p.vx; p.y += p.vy; p.vy += p.g; p.vx *= .96;
+    p.a -= p.dec;
+    if (p.a <= 0) { parts.splice(i, 1); continue; }
+    pX.beginPath(); pX.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    pX.fillStyle = p.col; pX.globalAlpha = p.a; pX.fill();
+  }
+  pX.globalAlpha = 1;
+}
+
+function doFlash(col) {
+  const f = document.getElementById('flash');
+  f.style.background = col; f.style.opacity = '.28';
+  f.style.transition = '';
+  setTimeout(() => { f.style.transition = 'opacity .45s'; f.style.opacity = '0'; }, 60);
+  setTimeout(() => { f.style.transition = ''; }, 560);
+}
+
+// ══════════════════════════════════════════════════════════════
+//  SCREEN MANAGEMENT
+// ══════════════════════════════════════════════════════════════
+const ALL_SCREENS = ['titleScreen','levelScreen','gameScreen','resultScreen','adminScreen'];
+function showScreen(id) {
+  ALL_SCREENS.forEach(s => document.getElementById(s).classList.toggle('hidden', s !== id));
+  if (id !== 'gameScreen' && running) endGame(true);
+}
+
+// ══════════════════════════════════════════════════════════════
+//  LEVEL + MODE SELECT
+// ══════════════════════════════════════════════════════════════
+let curLevel = '3', curMode = 'reading';
+
+function pickLevel(lv) { curLevel = lv; startGame(lv); }
+
+function setMode(m) {
+  curMode = m;
+  document.getElementById('modeReading').classList.toggle('active', m === 'reading');
+  document.getElementById('modeWriting').classList.toggle('active', m === 'writing');
+}
+
+function checkUnlock() {
+  const best = parseInt(localStorage.getItem('wf_best_' + curLevel) || '0');
+  const ok = best >= 500;
+  const mw = document.getElementById('modeWriting');
+  mw.classList.toggle('locked', !ok);
+  document.getElementById('unlockHint').textContent =
+    ok ? '' : `Writing モードは ${curLevel} 級で 500点 以上でアンロック (現在: ${best}点)`;
+}
+document.getElementById('levelScreen').addEventListener('transitionend', checkUnlock);
+
+// ══════════════════════════════════════════════════════════════
+//  GAME STATE
+// ══════════════════════════════════════════════════════════════
+const SPEEDS   = { '3': 9.5, 'pre2': 13, '2': 17 };  // % gameArea height / sec
+const TOTAL_T  = 60;  // seconds
+const PEN_WRN  = 5;   // time penalty wrong answer
+const PEN_MISS = 7;   // time penalty miss
+
+let running = false, locked = false;
+let score = 0, combo = 0, maxCombo = 0, correct = 0, wrong = 0, miss = 0;
+let timeLeft = TOTAL_T;
+let wordQueue = [], wIdx = 0;
+let fw = null;         // single falling word object
+let fwCol = 0;         // alternate columns
+let choices = [];      // [{ja, isCorrect, hidden}]
+let activePhase = 0;   // 0=4ch, 1=3ch, 2=2ch, 3=1ch
+let lastTs = null;
+
+function startGame(lv) {
+  curLevel = lv;
+  showScreen('gameScreen');
+
+  score = 0; combo = 0; maxCombo = 0; correct = 0; wrong = 0; miss = 0;
+  timeLeft = TOTAL_T; locked = false; running = true;
+  fw = null; fwCol = 0; choices = []; activePhase = 0; lastTs = null;
+
+  document.getElementById('gameArea').innerHTML = '';
+  setBtns([]);
+
+  const words = wDB[lv] || [];
+  if (words.length < 4) { alert('単語が少なすぎます。管理画面で単語を追加してください。'); return; }
+  wordQueue = shuffle([...words, ...words, ...words]);
+  wIdx = 0;
+
+  updateHUD();
+}
+
+// ══════════════════════════════════════════════════════════════
+//  GAME LOOP  (runs inside main rAF loop)
+// ══════════════════════════════════════════════════════════════
+function tickGame(ts) {
+  if (!running) return;
+  if (!lastTs) { lastTs = ts; return; }
+  const dt = Math.min((ts - lastTs) / 1000, .1);
+  lastTs = ts;
+
+  // Timer
+  timeLeft = Math.max(0, timeLeft - dt);
+  updateHUD();
+  if (timeLeft <= 0) { endGame(false); return; }
+
+  const ga   = document.getElementById('gameArea');
+  const gaH  = ga.clientHeight;
+  const spd  = SPEEDS[curLevel]; // % per second
+
+  // Spawn if no word
+  if (!fw) { spawnWord(gaH); return; }
+
+  // Advance position
+  fw.yPct += spd * dt;
+
+  // Update DOM
+  if (fw.el) {
+    fw.el.style.top = (fw.yPct / 100 * gaH) + 'px';
+    fw.el.classList.toggle('urgent', fw.yPct > 68);
+  }
+
+  // Reduce choices based on progress
+  const phase = fw.yPct < 25 ? 0 : fw.yPct < 50 ? 1 : fw.yPct < 75 ? 2 : 3;
+  if (phase > activePhase) {
+    activePhase = phase;
+    // Hide one distractor per phase increase
+    const vis = choices.filter(c => !c.isCorrect && !c.hidden);
+    if (vis.length > 0) { vis[0].hidden = true; setBtns(choices); }
+  }
+
+  // Miss
+  if (fw.yPct >= 102) {
+    onMiss();
+  }
+}
+
+function spawnWord(gaH) {
+  if (wIdx >= wordQueue.length) return;
+  const word = wordQueue[wIdx++];
+  fwCol = 1 - fwCol; // alternate columns
+  const xPct = fwCol === 0 ? 25 : 75;
+
+  // Build choices
+  const pool = (wDB[curLevel] || []).filter(w => w.ja !== word.ja).map(w => w.ja);
+  const distr = shuffle(pool).slice(0, 3);
+  choices = shuffle([
+    {ja: word.ja, isCorrect: true, hidden: false},
+    ...distr.map(j => ({ja: j, isCorrect: false, hidden: false}))
+  ]);
+  activePhase = 0;
+  setBtns(choices);
+
+  // DOM element
+  const el = document.createElement('div');
+  el.className = 'fword';
+  el.textContent = word.en;
+  el.style.left = xPct + '%';
+  el.style.top = '-60px';
+  document.getElementById('gameArea').appendChild(el);
+
+  fw = {word, xPct, yPct: -10, el};
+}
+
+function handleChoice(idx) {
+  if (!running || locked || !fw) return;
+  const ch = choices[idx];
+  if (!ch || ch.hidden) return;
+  const btn = document.getElementById('c' + idx);
+  if (ch.isCorrect) {
+    onCorrect(btn);
+  } else {
+    onWrong(btn);
+  }
+}
+
+function onCorrect(btn) {
+  locked = true;
+  correct++;
+  combo++;
+  if (combo > maxCombo) maxCombo = combo;
+
+  const y = fw.yPct;
+  const base = y < 25 ? 100 : y < 50 ? 75 : y < 75 ? 50 : 25;
+  const pts  = base * Math.min(combo, 5);
+  score += pts;
+
+  btn.classList.add('cor');
+  doFlash('#4ade80');
+
+  const rect = btn.getBoundingClientRect();
+  spawnParts(rect.left + rect.width / 2, rect.top + rect.height / 2);
+  showScorePop(rect.left + rect.width / 2, rect.top, '+' + pts);
+
+  // Remove word
+  fw.el.classList.add('answered');
+  setTimeout(() => { if (fw && fw.el && fw.el.parentNode) fw.el.parentNode.removeChild(fw.el); }, 350);
+  fw = null;
+
+  setTimeout(() => { btn.classList.remove('cor'); setBtns([]); locked = false; updateHUD(); }, 320);
+  updateHUD();
+}
+
+function onWrong(btn) {
+  locked = true;
+  wrong++;
+  combo = 0;
+  timeLeft = Math.max(0, timeLeft - PEN_WRN);
+
+  btn.classList.add('wrng');
+  doFlash('#f87171');
+  showTimePenalty('-' + PEN_WRN + 's');
+
+  setTimeout(() => { btn.classList.remove('wrng'); locked = false; updateHUD(); }, 420);
+  updateHUD();
+}
+
+function onMiss() {
+  miss++;
+  combo = 0;
+  timeLeft = Math.max(0, timeLeft - PEN_MISS);
+
+  if (fw.el && fw.el.parentNode) fw.el.parentNode.removeChild(fw.el);
+  fw = null;
+
+  doFlash('#f97316');
+  showTimePenalty('-' + PEN_MISS + 's');
+  setBtns([]);
+  updateHUD();
+}
+
+function showScorePop(x, y, txt) {
+  const el = document.createElement('div');
+  el.className = 'spop';
+  el.textContent = txt;
+  el.style.cssText = `left:${x}px;top:${y}px;transform:translateX(-50%);` +
+    `color:${combo >= 5 ? '#f97316' : combo >= 3 ? '#fcd34d' : '#4ade80'}`;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1350);
+}
+
+function showTimePenalty(txt) {
+  const tw = document.getElementById('timerWrap');
+  const rect = tw.getBoundingClientRect();
+  const el = document.createElement('div');
+  el.className = 'spop';
+  el.textContent = txt;
+  el.style.cssText = `left:${rect.left + rect.width * .7}px;top:${rect.top}px;color:#f87171;font-size:1rem`;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1200);
+}
+
+function setBtns(ch) {
+  ['c0','c1','c2','c3'].forEach((id, i) => {
+    const btn = document.getElementById(id);
+    btn.classList.remove('cor','wrng');
+    if (!ch || !ch[i]) { btn.textContent = ''; btn.classList.add('chide'); }
+    else { btn.textContent = ch[i].ja; btn.classList.toggle('chide', ch[i].hidden); }
+  });
+}
+
+function updateHUD() {
+  document.getElementById('scoreEl').textContent = score.toLocaleString();
+  const ce = document.getElementById('comboEl');
+  ce.textContent = combo >= 2 ? combo + '× COMBO!' : '';
+  ce.style.color = combo >= 5 ? '#f97316' : combo >= 3 ? '#fcd34d' : '#a78bfa';
+
+  const pct = timeLeft / TOTAL_T * 100;
+  const tb  = document.getElementById('timerBar');
+  tb.style.width = pct + '%';
+  tb.style.background = pct > 50
+    ? 'linear-gradient(90deg,#4ade80,#60a5fa)'
+    : pct > 25 ? 'linear-gradient(90deg,#fcd34d,#f97316)'
+    : 'linear-gradient(90deg,#f87171,#dc2626)';
+  document.getElementById('timerTxt').textContent = Math.ceil(timeLeft);
+}
+
+function endGame(silent) {
+  running = false;
+  if (fw && fw.el && fw.el.parentNode) fw.el.parentNode.removeChild(fw.el);
+  fw = null;
+
+  if (silent) return;
+
+  // Save best score
+  const key = 'wf_best_' + curLevel;
+  const prev = parseInt(localStorage.getItem(key) || '0');
+  if (score > prev) localStorage.setItem(key, score);
+
+  // Result
+  document.getElementById('finalPts').textContent = score.toLocaleString();
+  document.getElementById('sCor').textContent = correct;
+  document.getElementById('sWrn').textContent = wrong;
+  document.getElementById('sMis').textContent = miss;
+  document.getElementById('sMax').textContent = maxCombo;
+
+  const acc = correct + wrong > 0 ? Math.round(correct / (correct + wrong) * 100) : 0;
+  document.getElementById('rankMsg').textContent =
+    score >= 2000 ? '🏆 Excellent! 素晴らしい！' :
+    score >= 1000 ? '⭐ Great! よくできました！' :
+    score >= 500  ? '👍 Good! がんばりました！' : '💪 Keep going! 練習しよう！';
+
+  showScreen('resultScreen');
+}
+
+// ══════════════════════════════════════════════════════════════
+//  MAIN ANIMATION LOOP
+// ══════════════════════════════════════════════════════════════
+function mainLoop(ts) {
+  drawBG(ts);
+  drawParts();
+  tickGame(ts);
+  requestAnimationFrame(mainLoop);
+}
+
+// ══════════════════════════════════════════════════════════════
+//  ADMIN PANEL
+// ══════════════════════════════════════════════════════════════
+let adminLv = '3', editIdx = -1, importOpen = false;
+
+function initAdmin() { adminLv = '3'; renderAdmin(); }
+
+function switchTab(lv) {
+  adminLv = lv;
+  ['3','pre2','2'].forEach(l => document.getElementById('at' + l).classList.toggle('active', l === lv));
+  renderAdmin();
+}
+
+function renderAdmin() {
+  const words = wDB[adminLv] || [];
+  document.getElementById('wcount').textContent = words.length + ' 語';
+  const list = document.getElementById('wlist');
+  list.innerHTML = '';
+  words.forEach((w, i) => {
+    const d = document.createElement('div'); d.className = 'wrow';
+    d.innerHTML = `<span class="wen">${esc(w.en)}</span><span class="wja">${esc(w.ja)}</span>`
+      + `<button class="btn-sm btn-edit" onclick="openEdit(${i})">✏</button>`
+      + `<button class="btn-sm btn-del" onclick="delWord(${i})">✕</button>`;
+    list.appendChild(d);
+  });
+}
+
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function addWord() {
+  const en = document.getElementById('newEn').value.trim();
+  const ja = document.getElementById('newJa').value.trim();
+  if (!en || !ja) { alert('英語と日本語を入力してください'); return; }
+  if (!wDB[adminLv]) wDB[adminLv] = [];
+  wDB[adminLv].push({en, ja}); saveDB();
+  document.getElementById('newEn').value = ''; document.getElementById('newJa').value = '';
+  renderAdmin();
+}
+
+function delWord(i) {
+  if (!confirm('削除しますか？')) return;
+  wDB[adminLv].splice(i, 1); saveDB(); renderAdmin();
+}
+
+function openEdit(i) {
+  editIdx = i;
+  const w = wDB[adminLv][i];
+  document.getElementById('eEn').value = w.en; document.getElementById('eJa').value = w.ja;
+  document.getElementById('editModal').classList.remove('hidden');
+}
+function closeEdit() { document.getElementById('editModal').classList.add('hidden'); editIdx = -1; }
+function saveEdit() {
+  if (editIdx < 0) return;
+  const en = document.getElementById('eEn').value.trim();
+  const ja = document.getElementById('eJa').value.trim();
+  if (!en || !ja) { alert('英語と日本語を入力してください'); return; }
+  wDB[adminLv][editIdx] = {en, ja}; saveDB(); closeEdit(); renderAdmin();
+}
+
+function doExportJSON() {
+  const blob = new Blob([JSON.stringify(wDB[adminLv] || [], null, 2)], {type:'application/json'});
+  dl(blob, `words_${adminLv}.json`);
+}
+function doExportCSV() {
+  const csv = (wDB[adminLv] || []).map(w => `${w.en},${w.ja}`).join('\n');
+  dl(new Blob(['\ufeff' + csv], {type:'text/csv;charset=utf-8'}), `words_${adminLv}.csv`);
+}
+function dl(blob, name) {
+  const u = URL.createObjectURL(blob), a = document.createElement('a');
+  a.href = u; a.download = name; a.click(); URL.revokeObjectURL(u);
+}
+
+function toggleImport() {
+  importOpen = !importOpen;
+  document.getElementById('importBox').classList.toggle('hidden', !importOpen);
+}
+
+function doImportJSON() {
+  try {
+    const arr = JSON.parse(document.getElementById('importTxt').value);
+    if (!Array.isArray(arr)) throw 0;
+    const v = arr.filter(w => w.en && w.ja);
+    if (!wDB[adminLv]) wDB[adminLv] = [];
+    wDB[adminLv].push(...v); saveDB(); renderAdmin(); toggleImport();
+    alert(`${v.length}語をインポートしました`);
+  } catch(e) { alert('JSONの形式が正しくありません'); }
+}
+function doImportCSV() {
+  const lines = document.getElementById('importTxt').value.split('\n').filter(l => l.trim());
+  const v = lines.map(l => { const p = l.split(','); return p.length >= 2 ? {en:p[0].trim(), ja:p.slice(1).join(',').trim()} : null; }).filter(Boolean);
+  if (!wDB[adminLv]) wDB[adminLv] = [];
+  wDB[adminLv].push(...v); saveDB(); renderAdmin(); toggleImport();
+  alert(`${v.length}語をインポートしました`);
+}
+
+function resetDefaults() {
+  if (!confirm('デフォルトの単語リストに戻しますか？\n（現在の単語は削除されます）')) return;
+  wDB[adminLv] = JSON.parse(JSON.stringify(DEFAULT_DB[adminLv])); saveDB(); renderAdmin();
+}
+
+// ══════════════════════════════════════════════════════════════
+//  UTILS
+// ══════════════════════════════════════════════════════════════
+function shuffle(a) {
+  const arr = [...a];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// ══════════════════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════════════════
+window.addEventListener('resize', resizeCanvases);
+resizeCanvases();
+requestAnimationFrame(mainLoop);
+</script>
+</body>
+</html>
