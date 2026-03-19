@@ -602,6 +602,12 @@ function tickGame(ts) {
     if (vis.length > 0) { vis[0].hidden = true; setBtns(choices); }
   }
 
+  // Mid-point re-pronunciation
+  if (fw.yPct >= 50 && !fw.midSpoken) {
+    fw.midSpoken = true;
+    speakWord(fw.word.en);
+  }
+
   // Miss
   if (fw.yPct >= 95) {
     onMiss();
@@ -632,7 +638,7 @@ function spawnWord(gaH) {
   el.style.top = '-60px';
   document.getElementById('gameArea').appendChild(el);
 
-  fw = {word, xPct, yPct: -10, el};
+  fw = {word, xPct, yPct: -10, el, midSpoken: false};
   speakWord(word.en);
 }
 
@@ -661,6 +667,7 @@ function onCorrect(btn) {
 
   btn.classList.add('cor');
   doFlash('#4ade80');
+  speakWord(fw.word.en);
   sndCorrect(combo);
 
   const rect = btn.getBoundingClientRect();
@@ -686,6 +693,7 @@ function onWrong(btn) {
   btn.classList.add('wrng');
   doFlash('#f87171');
   sndWrong();
+  speakWord(fw.word.en);
   showTimePenalty('-' + PEN_WRN + 's');
 
   setTimeout(() => { btn.classList.remove('wrng'); locked = false; updateHUD(); }, 420);
