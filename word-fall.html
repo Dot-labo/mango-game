@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Word Fall — SAKURA KIDS</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{width:100%;height:100%;overflow:hidden;background:#06071a;color:#fff;
@@ -150,8 +152,41 @@ html,body{width:100%;height:100%;overflow:hidden;background:#06071a;color:#fff;
 .wrow{display:flex;align-items:center;gap:.45rem;
   padding:.45rem .3rem;border-bottom:1px solid rgba(255,255,255,.04);font-size:.87rem}
 .wrow:hover{background:rgba(255,255,255,.02);border-radius:6px}
-.wen{font-weight:700;min-width:110px;color:#c4b5fd}
+.wen{font-weight:700;min-width:100px;color:#c4b5fd}
 .wja{flex:1;color:#999}
+.pos-badge{font-size:.65rem;font-weight:700;padding:.15rem .42rem;border-radius:5px;
+  white-space:nowrap;flex-shrink:0;min-width:32px;text-align:center}
+.pos-badge.n   {background:rgba(96,165,250,.18);color:#60a5fa}
+.pos-badge.v   {background:rgba(74,222,128,.18);color:#4ade80}
+.pos-badge.adj {background:rgba(251,191,36,.18);color:#fbbf24}
+.pos-badge.adv {background:rgba(249,115,22,.18);color:#f97316}
+.pos-badge.prep{background:rgba(244,114,182,.18);color:#f472b6}
+.pos-badge.phrase{background:rgba(167,139,250,.18);color:#a78bfa}
+.pos-badge.other{background:rgba(255,255,255,.08);color:#666}
+.pos-badge.unclassified{background:rgba(255,255,255,.04);color:#444;font-style:italic}
+.add-row select{padding:.48rem .5rem;background:rgba(255,255,255,.07);
+  border:1px solid rgba(255,255,255,.14);border-radius:8px;
+  color:#fff;font-size:.85rem;cursor:pointer}
+.add-row select:focus{outline:none;border-color:#7c3aed}
+.add-row select option{background:#12132a;color:#fff}
+.modal-box select{width:100%;padding:.55rem .75rem;
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);
+  border-radius:8px;color:#fff;font-size:.88rem;margin-bottom:.45rem;cursor:pointer}
+.modal-box select:focus{outline:none;border-color:#7c3aed}
+.modal-box select option{background:#12132a}
+/* pos filter in level screen */
+.pos-filter-row{display:flex;gap:.4rem;flex-wrap:wrap;justify-content:center;margin-bottom:.5rem}
+.pf-btn{padding:.38rem .85rem;border-radius:8px;cursor:pointer;font-size:.8rem;font-weight:600;
+  border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.05);
+  transition:all .2s;color:#888;user-select:none}
+.pf-btn.active{background:rgba(124,58,237,.3);border-color:#7c3aed;color:#c4b5fd}
+.pf-btn.active.n   {background:rgba(96,165,250,.25);border-color:#60a5fa;color:#60a5fa}
+.pf-btn.active.v   {background:rgba(74,222,128,.25);border-color:#4ade80;color:#4ade80}
+.pf-btn.active.adj {background:rgba(251,191,36,.25);border-color:#fbbf24;color:#fbbf24}
+.pf-btn.active.adv {background:rgba(249,115,22,.25);border-color:#f97316;color:#f97316}
+.pf-btn.active.prep{background:rgba(244,114,182,.25);border-color:#f472b6;color:#f472b6}
+.pf-btn.active.phrase{background:rgba(167,139,250,.25);border-color:#a78bfa;color:#a78bfa}
+.pf-btn.active.other{background:rgba(255,255,255,.15);border-color:#aaa;color:#ddd}
 .import-box{padding:.9rem;background:rgba(255,255,255,.03);
   border:1px solid rgba(255,255,255,.07);border-radius:12px;margin-top:.8rem}
 .import-box h4{font-size:.85rem;color:#888;margin-bottom:.55rem}
@@ -210,6 +245,11 @@ html,body{width:100%;height:100%;overflow:hidden;background:#06071a;color:#fff;
   <div class="screen-title">レベル・モードを選択</div>
   <div style="color:#444;font-size:.75rem;margin-bottom:1rem">英検対応</div>
   <div class="lv-grid">
+    <div class="lv-card" onclick="pickLevel('4')">
+      <div class="lv-icon">⭐</div>
+      <div class="lv-label" style="color:#a3e635">4 級</div>
+      <div class="lv-desc">CEFR A1</div>
+    </div>
     <div class="lv-card" onclick="pickLevel('3')">
       <div class="lv-icon">🟢</div>
       <div class="lv-label" style="color:#4ade80">3 級</div>
@@ -232,6 +272,19 @@ html,body{width:100%;height:100%;overflow:hidden;background:#06071a;color:#fff;
     <div class="mode-btn locked" id="modeWriting" title="Reading で一定スコアに達するとアンロック">✏ Writing 🔒</div>
   </div>
   <div class="unlock-hint" id="unlockHint"></div>
+  <br>
+  <div style="margin-bottom:.4rem;font-size:.82rem;color:#555">品詞フィルター</div>
+  <div class="pos-filter-row" id="posFilterRow">
+    <div class="pf-btn active" id="pf_all"    onclick="togglePosFilter('')">すべて</div>
+    <div class="pf-btn" id="pf_n"      onclick="togglePosFilter('n')">名詞</div>
+    <div class="pf-btn" id="pf_v"      onclick="togglePosFilter('v')">動詞</div>
+    <div class="pf-btn" id="pf_adj"    onclick="togglePosFilter('adj')">形容詞</div>
+    <div class="pf-btn" id="pf_adv"    onclick="togglePosFilter('adv')">副詞</div>
+    <div class="pf-btn" id="pf_prep"   onclick="togglePosFilter('prep')">前置詞</div>
+    <div class="pf-btn" id="pf_phrase" onclick="togglePosFilter('phrase')">熟語</div>
+    <div class="pf-btn" id="pf_other"  onclick="togglePosFilter('other')">その他</div>
+  </div>
+  <div class="unlock-hint" id="posHint" style="margin-bottom:.5rem"></div>
   <br>
   <button class="btn btn-ghost" onclick="showScreen('titleScreen')">← 戻る</button>
 </div>
@@ -287,41 +340,51 @@ html,body{width:100%;height:100%;overflow:hidden;background:#06071a;color:#fff;
   </div>
   <div class="admin-body">
     <div class="tabs">
-      <div class="tab active" id="at3"    onclick="switchTab('3')">3級</div>
+      <div class="tab active" id="at4"    onclick="switchTab('4')">4級</div>
+      <div class="tab"        id="at3"    onclick="switchTab('3')">3級</div>
       <div class="tab"        id="atpre2" onclick="switchTab('pre2')">準2級</div>
       <div class="tab"        id="at2"    onclick="switchTab('2')">2級</div>
     </div>
     <div class="add-row">
       <input type="text" id="newEn" placeholder="英語 (例: dream)" maxlength="60">
       <input type="text" id="newJa" placeholder="日本語 (例: 夢)" maxlength="40">
+      <select id="newPos">
+        <option value="">未分類</option>
+        <option value="n">名詞</option>
+        <option value="v">動詞</option>
+        <option value="adj">形容詞</option>
+        <option value="adv">副詞</option>
+        <option value="prep">前置詞</option>
+        <option value="phrase">熟語</option>
+        <option value="other">その他</option>
+      </select>
       <button class="btn btn-ghost" style="padding:.45rem .85rem;font-size:.82rem"
         onclick="addWord()">＋ 追加</button>
     </div>
     <div class="act-row">
       <button class="btn btn-ghost" style="padding:.38rem .8rem;font-size:.78rem"
-        onclick="doExportJSON()">⬇ JSON</button>
-      <button class="btn btn-ghost" style="padding:.38rem .8rem;font-size:.78rem"
         onclick="doExportCSV()">⬇ CSV</button>
+      <input type="file" id="importFile" accept=".csv,.json,.txt"
+        style="display:none" onchange="onFileSelected(this)">
       <button class="btn btn-ghost" style="padding:.38rem .8rem;font-size:.78rem"
-        onclick="toggleImport()">⬆ インポート</button>
-      <button class="btn btn-ghost" style="padding:.38rem .8rem;font-size:.78rem;color:#f87171"
-        onclick="resetDefaults()">↺ デフォルト</button>
+        onclick="document.getElementById('importFile').click()">⬆ インポート</button>
+      <button class="btn btn-ghost" style="padding:.38rem .8rem;font-size:.78rem;color:#f87171;border-color:rgba(248,113,113,.35)"
+        onclick="clearAllWords()">🗑 全消去</button>
+    </div>
+    <!-- admin pos filter -->
+    <div style="display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:.5rem">
+      <div class="pf-btn active" id="apf_all" onclick="setAdminPosFilter('')">すべて</div>
+      <div class="pf-btn" id="apf_n"      onclick="setAdminPosFilter('n')">名詞</div>
+      <div class="pf-btn" id="apf_v"      onclick="setAdminPosFilter('v')">動詞</div>
+      <div class="pf-btn" id="apf_adj"    onclick="setAdminPosFilter('adj')">形容詞</div>
+      <div class="pf-btn" id="apf_adv"    onclick="setAdminPosFilter('adv')">副詞</div>
+      <div class="pf-btn" id="apf_prep"   onclick="setAdminPosFilter('prep')">前置詞</div>
+      <div class="pf-btn" id="apf_phrase" onclick="setAdminPosFilter('phrase')">熟語</div>
+      <div class="pf-btn" id="apf_other"  onclick="setAdminPosFilter('other')">その他</div>
+      <div class="pf-btn" id="apf_"       onclick="setAdminPosFilter('__unclassified')">未分類</div>
     </div>
     <div class="wcount" id="wcount"></div>
     <div id="wlist"></div>
-    <div class="import-box hidden" id="importBox">
-      <h4>インポート</h4>
-      <div class="hint">JSON形式: [{"en":"word","ja":"意味"}, ...] または CSV: word,意味 (1行1語)</div>
-      <textarea id="importTxt" placeholder='[{"en":"example","ja":"例"}]'></textarea>
-      <div class="imp-btns">
-        <button class="btn btn-ghost" style="padding:.38rem .8rem;font-size:.78rem"
-          onclick="doImportJSON()">JSON取り込み</button>
-        <button class="btn btn-ghost" style="padding:.38rem .8rem;font-size:.78rem"
-          onclick="doImportCSV()">CSV取り込み</button>
-        <button class="btn btn-ghost" style="padding:.38rem .8rem;font-size:.78rem"
-          onclick="toggleImport()">閉じる</button>
-      </div>
-    </div>
   </div>
 </div>
 
@@ -331,6 +394,16 @@ html,body{width:100%;height:100%;overflow:hidden;background:#06071a;color:#fff;
     <h3>単語を編集</h3>
     <input type="text" id="eEn" placeholder="英語">
     <input type="text" id="eJa" placeholder="日本語">
+    <select id="ePos">
+      <option value="">未分類</option>
+      <option value="n">名詞</option>
+      <option value="v">動詞</option>
+      <option value="adj">形容詞</option>
+      <option value="adv">副詞</option>
+      <option value="prep">前置詞</option>
+      <option value="phrase">熟語</option>
+      <option value="other">その他</option>
+    </select>
     <div class="modal-acts">
       <button class="btn btn-ghost" style="padding:.45rem 1rem;font-size:.85rem"
         onclick="closeEdit()">キャンセル</button>
@@ -345,59 +418,111 @@ html,body{width:100%;height:100%;overflow:hidden;background:#06071a;color:#fff;
 //  WORD DATABASE
 // ══════════════════════════════════════════════════════════════
 const DEFAULT_DB = {
+  "4": [
+    {en:"dog",ja:"犬",pos:"n"},{en:"cat",ja:"猫",pos:"n"},{en:"house",ja:"家",pos:"n"},
+    {en:"pen",ja:"ペン",pos:"n"},{en:"bag",ja:"かばん",pos:"n"},{en:"desk",ja:"机",pos:"n"},
+    {en:"chair",ja:"椅子",pos:"n"},{en:"door",ja:"ドア",pos:"n"},{en:"window",ja:"窓",pos:"n"},
+    {en:"bed",ja:"ベッド",pos:"n"},{en:"cup",ja:"カップ",pos:"n"},{en:"egg",ja:"卵",pos:"n"},
+    {en:"milk",ja:"牛乳",pos:"n"},{en:"bread",ja:"パン",pos:"n"},{en:"cake",ja:"ケーキ",pos:"n"},
+    {en:"rice",ja:"ごはん",pos:"n"},{en:"juice",ja:"ジュース",pos:"n"},{en:"tea",ja:"お茶",pos:"n"},
+    {en:"bus",ja:"バス",pos:"n"},{en:"car",ja:"車",pos:"n"},{en:"bike",ja:"自転車",pos:"n"},
+    {en:"train",ja:"電車",pos:"n"},{en:"park",ja:"公園",pos:"n"},{en:"shop",ja:"お店",pos:"n"},
+    {en:"big",ja:"大きい",pos:"adj"},{en:"small",ja:"小さい",pos:"adj"},{en:"new",ja:"新しい",pos:"adj"},
+    {en:"old",ja:"古い",pos:"adj"},{en:"hot",ja:"熱い・暑い",pos:"adj"},{en:"cold",ja:"冷たい・寒い",pos:"adj"},
+    {en:"good",ja:"良い",pos:"adj"},{en:"fast",ja:"速い",pos:"adj"},{en:"tall",ja:"背が高い",pos:"adj"},
+    {en:"run",ja:"走る",pos:"v"},{en:"eat",ja:"食べる",pos:"v"},{en:"drink",ja:"飲む",pos:"v"},
+    {en:"go",ja:"行く",pos:"v"},{en:"come",ja:"来る",pos:"v"},{en:"see",ja:"見る",pos:"v"},
+    {en:"play",ja:"遊ぶ・演奏する",pos:"v"},{en:"read",ja:"読む",pos:"v"},{en:"write",ja:"書く",pos:"v"},
+    {en:"walk",ja:"歩く",pos:"v"},{en:"swim",ja:"泳ぐ",pos:"v"},{en:"sing",ja:"歌う",pos:"v"},
+    {en:"always",ja:"いつも",pos:"adv"},{en:"often",ja:"よく",pos:"adv"},{en:"very",ja:"とても",pos:"adv"},
+    {en:"here",ja:"ここに",pos:"adv"},{en:"there",ja:"そこに",pos:"adv"},{en:"now",ja:"今",pos:"adv"}
+  ],
   "3": [
-    {en:"apple",ja:"りんご"},{en:"school",ja:"学校"},{en:"music",ja:"音楽"},
-    {en:"sport",ja:"スポーツ"},{en:"friend",ja:"友達"},{en:"family",ja:"家族"},
-    {en:"book",ja:"本"},{en:"water",ja:"水"},{en:"animal",ja:"動物"},
-    {en:"food",ja:"食べ物"},{en:"spring",ja:"春"},{en:"summer",ja:"夏"},
-    {en:"winter",ja:"冬"},{en:"flower",ja:"花"},{en:"dream",ja:"夢"},
-    {en:"sky",ja:"空"},{en:"star",ja:"星"},{en:"moon",ja:"月"},
-    {en:"happy",ja:"幸せ"},{en:"color",ja:"色"},{en:"town",ja:"町"},
-    {en:"name",ja:"名前"},{en:"time",ja:"時間"},{en:"love",ja:"愛"},
-    {en:"life",ja:"人生"},{en:"heart",ja:"心"},{en:"ocean",ja:"海"},
-    {en:"forest",ja:"森"},{en:"river",ja:"川"},{en:"bird",ja:"鳥"}
+    {en:"apple",ja:"りんご",pos:"n"},{en:"school",ja:"学校",pos:"n"},{en:"music",ja:"音楽",pos:"n"},
+    {en:"sport",ja:"スポーツ",pos:"n"},{en:"friend",ja:"友達",pos:"n"},{en:"family",ja:"家族",pos:"n"},
+    {en:"book",ja:"本",pos:"n"},{en:"water",ja:"水",pos:"n"},{en:"animal",ja:"動物",pos:"n"},
+    {en:"food",ja:"食べ物",pos:"n"},{en:"spring",ja:"春",pos:"n"},{en:"summer",ja:"夏",pos:"n"},
+    {en:"winter",ja:"冬",pos:"n"},{en:"flower",ja:"花",pos:"n"},{en:"dream",ja:"夢",pos:"n"},
+    {en:"sky",ja:"空",pos:"n"},{en:"star",ja:"星",pos:"n"},{en:"moon",ja:"月",pos:"n"},
+    {en:"happy",ja:"幸せな",pos:"adj"},{en:"color",ja:"色",pos:"n"},{en:"town",ja:"町",pos:"n"},
+    {en:"name",ja:"名前",pos:"n"},{en:"time",ja:"時間",pos:"n"},{en:"love",ja:"愛",pos:"n"},
+    {en:"life",ja:"人生",pos:"n"},{en:"heart",ja:"心",pos:"n"},{en:"ocean",ja:"海",pos:"n"},
+    {en:"forest",ja:"森",pos:"n"},{en:"river",ja:"川",pos:"n"},{en:"bird",ja:"鳥",pos:"n"}
   ],
   "pre2": [
-    {en:"freedom",ja:"自由"},{en:"culture",ja:"文化"},{en:"environment",ja:"環境"},
-    {en:"volunteer",ja:"ボランティア"},{en:"tradition",ja:"伝統"},
-    {en:"technology",ja:"技術"},{en:"experience",ja:"経験"},
-    {en:"adventure",ja:"冒険"},{en:"challenge",ja:"挑戦"},
-    {en:"community",ja:"地域社会"},{en:"journey",ja:"旅"},
-    {en:"victory",ja:"勝利"},{en:"treasure",ja:"宝物"},
-    {en:"disaster",ja:"災害"},{en:"courage",ja:"勇気"},
-    {en:"memory",ja:"記憶"},{en:"knowledge",ja:"知識"},
-    {en:"friendship",ja:"友情"},{en:"peaceful",ja:"平和な"},
-    {en:"achieve",ja:"達成する"},{en:"support",ja:"支援する"},
-    {en:"improve",ja:"改善する"},{en:"global",ja:"世界的な"},
-    {en:"creative",ja:"創造的な"},{en:"solution",ja:"解決策"},
-    {en:"connect",ja:"つなぐ"},{en:"modern",ja:"現代の"},
-    {en:"protect",ja:"守る"},{en:"local",ja:"地元の"},{en:"develop",ja:"発展させる"}
+    {en:"freedom",ja:"自由",pos:"n"},{en:"culture",ja:"文化",pos:"n"},{en:"environment",ja:"環境",pos:"n"},
+    {en:"volunteer",ja:"ボランティア",pos:"n"},{en:"tradition",ja:"伝統",pos:"n"},
+    {en:"technology",ja:"技術",pos:"n"},{en:"experience",ja:"経験",pos:"n"},
+    {en:"adventure",ja:"冒険",pos:"n"},{en:"challenge",ja:"挑戦",pos:"n"},
+    {en:"community",ja:"地域社会",pos:"n"},{en:"journey",ja:"旅",pos:"n"},
+    {en:"victory",ja:"勝利",pos:"n"},{en:"treasure",ja:"宝物",pos:"n"},
+    {en:"disaster",ja:"災害",pos:"n"},{en:"courage",ja:"勇気",pos:"n"},
+    {en:"memory",ja:"記憶",pos:"n"},{en:"knowledge",ja:"知識",pos:"n"},
+    {en:"friendship",ja:"友情",pos:"n"},{en:"peaceful",ja:"平和な",pos:"adj"},
+    {en:"achieve",ja:"達成する",pos:"v"},{en:"support",ja:"支援する",pos:"v"},
+    {en:"improve",ja:"改善する",pos:"v"},{en:"global",ja:"世界的な",pos:"adj"},
+    {en:"creative",ja:"創造的な",pos:"adj"},{en:"solution",ja:"解決策",pos:"n"},
+    {en:"connect",ja:"つなぐ",pos:"v"},{en:"modern",ja:"現代の",pos:"adj"},
+    {en:"protect",ja:"守る",pos:"v"},{en:"local",ja:"地元の",pos:"adj"},{en:"develop",ja:"発展させる",pos:"v"}
   ],
   "2": [
-    {en:"accelerate",ja:"加速する"},{en:"circumstance",ja:"状況"},
-    {en:"consequence",ja:"結果"},{en:"diversity",ja:"多様性"},
-    {en:"fundamental",ja:"根本的な"},{en:"grateful",ja:"感謝している"},
-    {en:"hesitate",ja:"ためらう"},{en:"illustrate",ja:"説明する"},
-    {en:"justify",ja:"正当化する"},{en:"maintain",ja:"維持する"},
-    {en:"navigate",ja:"航行する"},{en:"overcome",ja:"克服する"},
-    {en:"perceive",ja:"知覚する"},{en:"recognize",ja:"認識する"},
-    {en:"significant",ja:"重要な"},{en:"transform",ja:"変容させる"},
-    {en:"ultimate",ja:"究極の"},{en:"vulnerable",ja:"脆弱な"},
-    {en:"wisdom",ja:"知恵"},{en:"elaborate",ja:"精巧な"},
-    {en:"contribute",ja:"貢献する"},{en:"emphasize",ja:"強調する"},
-    {en:"evaluate",ja:"評価する"},{en:"generate",ja:"生み出す"},
-    {en:"indicate",ja:"示す"},{en:"numerous",ja:"多数の"},
-    {en:"priority",ja:"優先事項"},{en:"sufficient",ja:"十分な"},
-    {en:"potential",ja:"可能性"},{en:"efficient",ja:"効率的な"}
+    {en:"accelerate",ja:"加速する",pos:"v"},{en:"circumstance",ja:"状況",pos:"n"},
+    {en:"consequence",ja:"結果",pos:"n"},{en:"diversity",ja:"多様性",pos:"n"},
+    {en:"fundamental",ja:"根本的な",pos:"adj"},{en:"grateful",ja:"感謝している",pos:"adj"},
+    {en:"hesitate",ja:"ためらう",pos:"v"},{en:"illustrate",ja:"説明する",pos:"v"},
+    {en:"justify",ja:"正当化する",pos:"v"},{en:"maintain",ja:"維持する",pos:"v"},
+    {en:"navigate",ja:"航行する",pos:"v"},{en:"overcome",ja:"克服する",pos:"v"},
+    {en:"perceive",ja:"知覚する",pos:"v"},{en:"recognize",ja:"認識する",pos:"v"},
+    {en:"significant",ja:"重要な",pos:"adj"},{en:"transform",ja:"変容させる",pos:"v"},
+    {en:"ultimate",ja:"究極の",pos:"adj"},{en:"vulnerable",ja:"脆弱な",pos:"adj"},
+    {en:"wisdom",ja:"知恵",pos:"n"},{en:"elaborate",ja:"精巧な",pos:"adj"},
+    {en:"contribute",ja:"貢献する",pos:"v"},{en:"emphasize",ja:"強調する",pos:"v"},
+    {en:"evaluate",ja:"評価する",pos:"v"},{en:"generate",ja:"生み出す",pos:"v"},
+    {en:"indicate",ja:"示す",pos:"v"},{en:"numerous",ja:"多数の",pos:"adj"},
+    {en:"priority",ja:"優先事項",pos:"n"},{en:"sufficient",ja:"十分な",pos:"adj"},
+    {en:"potential",ja:"可能性",pos:"n"},{en:"efficient",ja:"効率的な",pos:"adj"}
   ]
 };
+
+// ── Firebase ───────────────────────────────────────────────────
+const firebaseConfig = {
+  apiKey: "AIzaSyCaVth-8AXqUWQD4b-Y-vkwousv230HyQ4",
+  authDomain: "sakura-kids-game.firebaseapp.com",
+  projectId: "sakura-kids-game",
+  storageBucket: "sakura-kids-game.firebasestorage.app",
+  messagingSenderId: "1062925555996",
+  appId: "1:1062925555996:web:312716b57348c1e06f82d9"
+};
+firebase.initializeApp(firebaseConfig);
+const _fs = firebase.firestore();
+const _fsDoc = _fs.collection('worddb').doc('data');
 
 function loadDB() {
   try { const s = localStorage.getItem('wf_db'); if (s) return JSON.parse(s); } catch(e) {}
   return JSON.parse(JSON.stringify(DEFAULT_DB));
 }
-function saveDB() { localStorage.setItem('wf_db', JSON.stringify(wDB)); }
+async function saveDB() {
+  localStorage.setItem('wf_db', JSON.stringify(wDB));
+  try { await _fsDoc.set({ db: wDB }); } catch(e) { console.warn('Firestore write failed', e); }
+}
 let wDB = loadDB();
+
+// Sync from Firestore on load (async — updates wDB after network fetch)
+(async () => {
+  try {
+    const snap = await _fsDoc.get();
+    if (snap.exists) {
+      wDB = snap.data().db;
+      localStorage.setItem('wf_db', JSON.stringify(wDB));
+      // refresh admin if open
+      const adm = document.getElementById('adminScreen');
+      if (adm && !adm.classList.contains('hidden')) renderAdmin();
+    } else {
+      // First time: push default data to Firestore
+      await _fsDoc.set({ db: wDB });
+    }
+  } catch(e) { console.warn('Firestore read failed, using local data', e); }
+})();
 
 // ══════════════════════════════════════════════════════════════
 //  CANVAS + BACKGROUND
@@ -793,6 +918,10 @@ function showScreen(id) {
 //  LEVEL + MODE SELECT
 // ══════════════════════════════════════════════════════════════
 let curLevel = '3', curMode = 'reading';
+const POS_LABELS = {n:'名詞', v:'動詞', adj:'形容詞', adv:'副詞', prep:'前置詞', phrase:'熟語', other:'その他'};
+// Japanese label → internal code (for CSV import)
+const POS_FROM_JA = {'名詞':'n','動詞':'v','形容詞':'adj','副詞':'adv','前置詞':'prep','熟語':'phrase','その他':'other','未分類':''};
+let curPosFilter = []; // [] = all; ['n'] or ['n','v'] = specific
 
 function pickLevel(lv) { curLevel = lv; startGame(lv); }
 
@@ -800,6 +929,34 @@ function setMode(m) {
   curMode = m;
   document.getElementById('modeReading').classList.toggle('active', m === 'reading');
   document.getElementById('modeWriting').classList.toggle('active', m === 'writing');
+}
+
+function togglePosFilter(pos) {
+  if (pos === '') {
+    curPosFilter = [];
+  } else {
+    const idx = curPosFilter.indexOf(pos);
+    if (idx >= 0) {
+      curPosFilter.splice(idx, 1);
+    } else {
+      if (curPosFilter.length >= 2) curPosFilter.shift();
+      curPosFilter.push(pos);
+    }
+  }
+  // Update button styles
+  const all = curPosFilter.length === 0;
+  document.getElementById('pf_all').classList.toggle('active', all);
+  ['n','v','adj','adv','prep','phrase','other'].forEach(p => {
+    const el = document.getElementById('pf_' + p);
+    const on = curPosFilter.includes(p);
+    el.classList.toggle('active', on);
+    // apply pos class for colour
+    el.className = 'pf-btn' + (on ? ' active ' + p : '');
+  });
+  // Hint
+  const hint = document.getElementById('posHint');
+  hint.textContent = curPosFilter.length === 0
+    ? '' : `${curPosFilter.map(p => POS_LABELS[p]).join(' + ')} しばり（最大2種類）`;
 }
 
 function checkUnlock() {
@@ -815,7 +972,7 @@ document.getElementById('levelScreen').addEventListener('transitionend', checkUn
 // ══════════════════════════════════════════════════════════════
 //  GAME STATE
 // ══════════════════════════════════════════════════════════════
-const SPEEDS   = { '3': 9.5, 'pre2': 13, '2': 17 };  // % gameArea height / sec
+const SPEEDS   = { '4': 7, '3': 9.5, 'pre2': 13, '2': 17 };  // % gameArea height / sec
 const TOTAL_T  = 60;  // seconds
 const PEN_WRN  = 5;   // time penalty wrong answer
 const PEN_MISS = 7;   // time penalty miss
@@ -843,7 +1000,15 @@ function startGame(lv) {
   document.getElementById('gameArea').innerHTML = '';
   setBtns([]);
 
-  const words = wDB[lv] || [];
+  let allWords = wDB[lv] || [];
+  let words = allWords;
+  if (curPosFilter.length > 0) {
+    words = allWords.filter(w => curPosFilter.includes(w.pos || 'other'));
+    if (words.length < 4) {
+      alert(`選択した品詞（${curPosFilter.map(p=>POS_LABELS[p]).join('+')}）の単語が${words.length}語しかありません。\nすべての品詞から出題します。`);
+      words = allWords;
+    }
+  }
   if (words.length < 4) { alert('単語が少なすぎます。管理画面で単語を追加してください。'); return; }
   wordQueue = shuffle([...words, ...words, ...words]);
   wIdx = 0;
@@ -915,8 +1080,13 @@ function spawnWord(gaH) {
   fwCol = 1 - fwCol; // alternate columns
   const xPct = fwCol === 0 ? 25 : 75;
 
-  // Build choices
-  const pool = (wDB[curLevel] || []).filter(w => w.ja !== word.ja).map(w => w.ja);
+  // Build choices (distractors from the same filtered pool when possible)
+  let poolSrc = wDB[curLevel] || [];
+  if (curPosFilter.length > 0) {
+    const filtered = poolSrc.filter(w => curPosFilter.includes(w.pos || 'other'));
+    if (filtered.length >= 4) poolSrc = filtered;
+  }
+  const pool = poolSrc.filter(w => w.ja !== word.ja).map(w => w.ja);
   const distr = shuffle(pool).slice(0, 3);
   choices = shuffle([
     {ja: word.ja, isCorrect: true, hidden: false},
@@ -1099,38 +1269,81 @@ function mainLoop(ts) {
 // ══════════════════════════════════════════════════════════════
 //  ADMIN PANEL
 // ══════════════════════════════════════════════════════════════
-let adminLv = '3', editIdx = -1, importOpen = false;
+let adminLv = '3', editIdx = -1, adminPosFilter = '';
 
-function initAdmin() { adminLv = '3'; renderAdmin(); }
+function initAdmin() { adminLv = '4'; adminPosFilter = ''; renderAdmin(); }
 
 function switchTab(lv) {
-  adminLv = lv;
-  ['3','pre2','2'].forEach(l => document.getElementById('at' + l).classList.toggle('active', l === lv));
+  adminLv = lv; adminPosFilter = '';
+  ['4','3','pre2','2'].forEach(l => document.getElementById('at' + l).classList.toggle('active', l === lv));
+  updateAdminPosButtons();
   renderAdmin();
 }
 
+function setAdminPosFilter(f) {
+  adminPosFilter = f;
+  updateAdminPosButtons();
+  renderAdmin();
+}
+
+function updateAdminPosButtons() {
+  const keys = ['', 'n','v','adj','adv','prep','phrase','other','__unclassified'];
+  keys.forEach(k => {
+    const id = 'apf_' + k;
+    const el = document.getElementById(id);
+    if (!el) return;
+    const on = adminPosFilter === k;
+    el.className = 'pf-btn' + (on ? ' active' + (k && k !== '__unclassified' ? ' ' + k : '') : '');
+  });
+}
+
 function renderAdmin() {
-  const words = wDB[adminLv] || [];
-  document.getElementById('wcount').textContent = words.length + ' 語';
+  const all = wDB[adminLv] || [];
+  // apply filter
+  let words, indices;
+  if (!adminPosFilter) {
+    words = all; indices = all.map((_, i) => i);
+  } else if (adminPosFilter === '__unclassified') {
+    indices = all.map((w, i) => (!w.pos || w.pos === '') ? i : -1).filter(i => i >= 0);
+    words = indices.map(i => all[i]);
+  } else {
+    indices = all.map((w, i) => (w.pos || '') === adminPosFilter ? i : -1).filter(i => i >= 0);
+    words = indices.map(i => all[i]);
+  }
+  const total = all.length;
+  document.getElementById('wcount').textContent =
+    words.length === total ? `${total} 語` : `${words.length} / ${total} 語`;
   const list = document.getElementById('wlist');
   list.innerHTML = '';
-  words.forEach((w, i) => {
+  words.forEach((w, row) => {
+    const realIdx = indices[row]; // index in the actual wDB array for edit/delete
+    const pos = w.pos || '';
+    const posLabel = POS_LABELS[pos] || '未分類';
+    const posCls = pos || 'unclassified';
     const d = document.createElement('div'); d.className = 'wrow';
     d.innerHTML = `<span class="wen">${esc(w.en)}</span><span class="wja">${esc(w.ja)}</span>`
-      + `<button class="btn-sm btn-edit" onclick="openEdit(${i})">✏</button>`
-      + `<button class="btn-sm btn-del" onclick="delWord(${i})">✕</button>`;
+      + `<span class="pos-badge ${posCls}">${esc(posLabel)}</span>`
+      + `<button class="btn-sm btn-edit" onclick="openEdit(${realIdx})">✏</button>`
+      + `<button class="btn-sm btn-del" onclick="delWord(${realIdx})">✕</button>`;
     list.appendChild(d);
   });
 }
 
-function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function clearAllWords() {
+  const n = (wDB[adminLv] || []).length;
+  if (!confirm(`${adminLv}級の単語を全て削除しますか？\n（${n}語が削除されます）`)) return;
+  wDB[adminLv] = []; saveDB(); adminPosFilter = ''; updateAdminPosButtons(); renderAdmin();
+}
+
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 function addWord() {
   const en = document.getElementById('newEn').value.trim();
   const ja = document.getElementById('newJa').value.trim();
+  const pos = document.getElementById('newPos').value;
   if (!en || !ja) { alert('英語と日本語を入力してください'); return; }
   if (!wDB[adminLv]) wDB[adminLv] = [];
-  wDB[adminLv].push({en, ja}); saveDB();
+  wDB[adminLv].push({en, ja, pos}); saveDB();
   document.getElementById('newEn').value = ''; document.getElementById('newJa').value = '';
   renderAdmin();
 }
@@ -1143,7 +1356,9 @@ function delWord(i) {
 function openEdit(i) {
   editIdx = i;
   const w = wDB[adminLv][i];
-  document.getElementById('eEn').value = w.en; document.getElementById('eJa').value = w.ja;
+  document.getElementById('eEn').value = w.en;
+  document.getElementById('eJa').value = w.ja;
+  document.getElementById('ePos').value = w.pos || '';
   document.getElementById('editModal').classList.remove('hidden');
 }
 function closeEdit() { document.getElementById('editModal').classList.add('hidden'); editIdx = -1; }
@@ -1151,8 +1366,9 @@ function saveEdit() {
   if (editIdx < 0) return;
   const en = document.getElementById('eEn').value.trim();
   const ja = document.getElementById('eJa').value.trim();
+  const pos = document.getElementById('ePos').value;
   if (!en || !ja) { alert('英語と日本語を入力してください'); return; }
-  wDB[adminLv][editIdx] = {en, ja}; saveDB(); closeEdit(); renderAdmin();
+  wDB[adminLv][editIdx] = {en, ja, pos}; saveDB(); closeEdit(); renderAdmin();
 }
 
 function doExportJSON() {
@@ -1160,40 +1376,61 @@ function doExportJSON() {
   dl(blob, `words_${adminLv}.json`);
 }
 function doExportCSV() {
-  const csv = (wDB[adminLv] || []).map(w => `${w.en},${w.ja}`).join('\n');
-  dl(new Blob(['\ufeff' + csv], {type:'text/csv;charset=utf-8'}), `words_${adminLv}.csv`);
+  // Format: English,日本語,品詞  (Japanese labels, with header row)
+  const header = 'English,日本語,品詞';
+  const rows = (wDB[adminLv] || []).map(w => {
+    const posJa = POS_LABELS[w.pos || ''] || '未分類';
+    return `${w.en},${w.ja},${posJa}`;
+  });
+  dl(new Blob(['\ufeff' + [header, ...rows].join('\n')], {type:'text/csv;charset=utf-8'}), `words_${adminLv}.csv`);
 }
 function dl(blob, name) {
   const u = URL.createObjectURL(blob), a = document.createElement('a');
   a.href = u; a.download = name; a.click(); URL.revokeObjectURL(u);
 }
 
-function toggleImport() {
-  importOpen = !importOpen;
-  document.getElementById('importBox').classList.toggle('hidden', !importOpen);
+const VALID_POS = new Set(['n','v','adj','adv','prep','phrase','other']);
+function parsePos(raw) {
+  if (!raw) return '';
+  const t = raw.trim();
+  if (VALID_POS.has(t)) return t;          // internal code (from JSON)
+  if (t in POS_FROM_JA) return POS_FROM_JA[t]; // Japanese label (from CSV)
+  return '';
 }
-
-function doImportJSON() {
-  try {
-    const arr = JSON.parse(document.getElementById('importTxt').value);
-    if (!Array.isArray(arr)) throw 0;
-    const v = arr.filter(w => w.en && w.ja);
+function onFileSelected(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const text = e.target.result;
+    const isJSON = file.name.toLowerCase().endsWith('.json');
+    let v = [];
+    if (isJSON) {
+      try {
+        const arr = JSON.parse(text);
+        if (!Array.isArray(arr)) throw 0;
+        v = arr.filter(w => w.en && w.ja).map(w => ({
+          en: w.en, ja: w.ja, pos: parsePos(w.pos)
+        }));
+      } catch(err) { alert('JSONの形式が正しくありません'); input.value=''; return; }
+    } else {
+      // CSV: English,日本語,品詞  (first row may be header)
+      const lines = text.split('\n').filter(l => l.trim());
+      v = lines.map(l => {
+        const p = l.split(',');
+        if (p.length < 2) return null;
+        // Skip header row (English/en etc.)
+        if (/^(English|english|en)$/i.test(p[0].trim())) return null;
+        const posRaw = p.length >= 3 ? p[2] : '';
+        return {en:p[0].trim(), ja:p[1].trim(), pos: parsePos(posRaw)};
+      }).filter(Boolean);
+    }
     if (!wDB[adminLv]) wDB[adminLv] = [];
-    wDB[adminLv].push(...v); saveDB(); renderAdmin(); toggleImport();
+    wDB[adminLv].push(...v); saveDB(); renderAdmin();
     alert(`${v.length}語をインポートしました`);
-  } catch(e) { alert('JSONの形式が正しくありません'); }
-}
-function doImportCSV() {
-  const lines = document.getElementById('importTxt').value.split('\n').filter(l => l.trim());
-  const v = lines.map(l => { const p = l.split(','); return p.length >= 2 ? {en:p[0].trim(), ja:p.slice(1).join(',').trim()} : null; }).filter(Boolean);
-  if (!wDB[adminLv]) wDB[adminLv] = [];
-  wDB[adminLv].push(...v); saveDB(); renderAdmin(); toggleImport();
-  alert(`${v.length}語をインポートしました`);
-}
-
-function resetDefaults() {
-  if (!confirm('デフォルトの単語リストに戻しますか？\n（現在の単語は削除されます）')) return;
-  wDB[adminLv] = JSON.parse(JSON.stringify(DEFAULT_DB[adminLv])); saveDB(); renderAdmin();
+    input.value = '';
+  };
+  reader.readAsText(file, 'UTF-8');
 }
 
 // ══════════════════════════════════════════════════════════════
