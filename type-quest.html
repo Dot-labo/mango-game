@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Type Quest — SAKURA KIDS</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;background:#06071a;color:#fff;
+  font-family:'Segoe UI',system-ui,sans-serif}
+#bgC{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}
+#flash{position:fixed;inset:0;pointer-events:none;z-index:80;opacity:0}
+
+/* ── SCREENS ────────────────────────────────────── */
+.screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;z-index:10;transition:opacity .3s;overflow-y:auto;padding:1.5rem 1rem}
+.screen.hidden{opacity:0;pointer-events:none}
+
+/* ── TITLE ──────────────────────────────────────── */
+.logo{font-size:3.2rem;font-weight:900;letter-spacing:.04em;
+  background:linear-gradient(135deg,#a78bfa 0%,#60a5fa 50%,#4ade80 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+  text-align:center;line-height:1.1}
+.logo-sub{color:#555;font-size:.78rem;letter-spacing:.22em;text-transform:uppercase;
+  margin:.4rem 0 2rem;text-align:center}
+.course-grid{display:flex;gap:1.5rem;flex-wrap:wrap;justify-content:center;margin:0 0 1.5rem}
+.course-card{width:162px;padding:1.8rem 1rem;text-align:center;
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
+  border-radius:20px;cursor:pointer;transition:all .2s}
+.course-card:hover{transform:translateY(-8px);background:rgba(124,58,237,.15);
+  border-color:rgba(124,58,237,.5);box-shadow:0 12px 40px rgba(124,58,237,.25)}
+.course-icon{font-size:2.6rem;margin-bottom:.5rem}
+.course-name{font-weight:800;font-size:1rem;margin-bottom:.25rem}
+.course-desc{font-size:.67rem;color:#555;line-height:1.4}
+.btn-home{background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.3);color:#fff;
+  border-radius:40px;padding:.45rem 1.3rem;font-size:.8rem;font-weight:700;
+  cursor:pointer;text-decoration:none;display:inline-block}
+
+/* ── STAGE SELECT ───────────────────────────────── */
+.screen-title{font-size:1.25rem;font-weight:700;color:#ccc;margin-bottom:.25rem;text-align:center}
+.stage-grid{display:flex;gap:.85rem;flex-wrap:wrap;justify-content:center;
+  margin:.8rem 0;max-width:720px}
+.stage-card{width:176px;padding:1.1rem;text-align:center;
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);
+  border-radius:15px;cursor:pointer;transition:all .2s}
+.stage-card:hover{transform:translateY(-5px)}
+.stage-icon{font-size:2rem;margin-bottom:.3rem}
+.stage-name{font-weight:700;font-size:.86rem;margin-bottom:.2rem}
+.stage-desc{font-size:.64rem;color:#555;line-height:1.4}
+.stage-target{font-size:.6rem;margin-top:.3rem;font-weight:600}
+.btn-back{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#888;
+  border-radius:30px;padding:.4rem 1rem;font-size:.78rem;cursor:pointer;font-weight:600}
+
+/* ── HUD ─────────────────────────────────────────── */
+#gameScreen{justify-content:flex-start}
+#hud{width:100%;padding:.45rem 1rem;display:flex;align-items:center;gap:.7rem;
+  background:rgba(0,0,0,.6);backdrop-filter:blur(8px);z-index:20;flex-shrink:0;min-height:46px}
+#scoreEl{font-size:1.05rem;font-weight:900;color:#fcd34d;min-width:68px}
+#wpmEl{font-size:.72rem;font-weight:700;color:#60a5fa;min-width:58px}
+#accEl{font-size:.72rem;font-weight:700;color:#4ade80;min-width:50px}
+.hud-sep{flex:1}
+#timerEl{font-size:1rem;font-weight:700;min-width:34px;text-align:right}
+.hud-btn{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);color:#888;
+  border-radius:8px;padding:.3rem .55rem;font-size:.78rem;cursor:pointer;font-weight:700}
+
+/* ── GAME AREA ───────────────────────────────────── */
+#gameArea{flex:1;width:100%;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;padding:.6rem 1rem;gap:.55rem;min-height:0}
+#stageLabel{font-size:.63rem;color:#333;letter-spacing:.18em;text-transform:uppercase}
+#wordEmoji{font-size:2.4rem;min-height:2.9rem;text-align:center;line-height:1.2}
+#wordHint{font-size:1.65rem;color:#c4b5fd;font-weight:700;min-height:2.2rem;
+  text-align:center;line-height:1;max-width:90vw}
+#typingDisplay{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;
+  gap:.05em;font-size:2rem;font-weight:700;font-family:'Courier New',monospace;
+  letter-spacing:.1em;background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.08);border-radius:14px;
+  padding:.7rem 1.2rem;min-width:260px;max-width:92vw;min-height:3.8rem}
+.ch{transition:color .1s,background .1s;color:#222;user-select:none}
+.ch.done{color:#4ade80}
+.ch.cur{color:#fff;background:rgba(124,58,237,.45);border-radius:3px;
+  animation:blink .9s ease-in-out infinite}
+.ch.miss{color:#f87171;animation:shk .25s ease}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.45}}
+@keyframes shk{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+#progressWrap{width:100%;max-width:300px;height:4px;background:rgba(255,255,255,.05);
+  border-radius:2px;overflow:hidden}
+#progressBar{height:100%;background:linear-gradient(90deg,#7c3aed,#4ade80);
+  width:0%;transition:width .3s}
+#wordCount{font-size:.65rem;color:#333;letter-spacing:.08em}
+#fingerLabel{font-size:.77rem;color:#a78bfa;font-weight:600;text-align:center;
+  min-height:1rem;letter-spacing:.04em}
+
+/* ── HAND GUIDE ──────────────────────────────────── */
+#handGuide{display:flex;gap:2rem;align-items:flex-end;justify-content:center;
+  padding:.3rem 0 .4rem;flex-shrink:0}
+#handGuide svg{overflow:visible}
+.finger{transition:filter .12s}
+.fng-rect{transition:fill .12s}
+@keyframes homeGlow{0%,100%{opacity:.3}50%{opacity:.95}}
+.home-dot{animation:homeGlow 1.8s ease-in-out infinite}
+
+/* ── ITEM LAYER ──────────────────────────────────── */
+#itemLayer{position:fixed;top:56px;right:.8rem;display:flex;flex-direction:column;
+  gap:.35rem;z-index:60;pointer-events:none;align-items:flex-end}
+.item-pop{display:flex;align-items:center;gap:.35rem;
+  background:rgba(15,8,35,.93);border:1px solid rgba(124,58,237,.5);
+  border-radius:9px;padding:.4rem .8rem;font-size:.8rem;font-weight:700;color:#c4b5fd;
+  animation:iPop .35s ease,iFade .35s ease 1.65s forwards}
+@keyframes iPop{from{transform:translateX(80px);opacity:0}to{transform:none;opacity:1}}
+@keyframes iFade{to{opacity:0;transform:translateY(-8px)}}
+
+/* ── COMBO POPUP ─────────────────────────────────── */
+.combo-pop{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+  font-size:2.4rem;font-weight:900;color:#fcd34d;pointer-events:none;z-index:70;
+  animation:comboPop .65s ease forwards;
+  text-shadow:0 0 24px rgba(252,211,77,.75),0 0 60px rgba(252,211,77,.3)}
+@keyframes comboPop{0%{transform:translate(-50%,-50%) scale(.5);opacity:0}
+  35%{transform:translate(-50%,-50%) scale(1.2);opacity:1}
+  100%{transform:translate(-50%,-68%) scale(1);opacity:0}}
+
+/* ── RESULT ──────────────────────────────────────── */
+.result-title{font-size:2.4rem;font-weight:900;
+  background:linear-gradient(135deg,#fcd34d,#f97316);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.result-sub{font-size:.72rem;color:#333;letter-spacing:.15em;margin-bottom:.8rem}
+.stat-row{display:flex;gap:.9rem;flex-wrap:wrap;justify-content:center;margin:.4rem 0}
+.stat-box{text-align:center;background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:.6rem 1rem}
+.stat-val{font-size:1.5rem;font-weight:900;color:#fcd34d}
+.stat-lbl{font-size:.6rem;color:#444;margin-top:.15rem;letter-spacing:.06em}
+.items-box{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);
+  border-radius:12px;padding:.85rem;width:100%;max-width:380px;margin:.4rem 0}
+.items-box-ttl{font-size:.68rem;color:#555;letter-spacing:.12em;margin-bottom:.5rem;
+  text-transform:uppercase}
+.items-chips{display:flex;flex-wrap:wrap;gap:.4rem}
+.item-chip{display:flex;align-items:center;gap:.3rem;
+  background:rgba(124,58,237,.15);border:1px solid rgba(124,58,237,.3);
+  border-radius:7px;padding:.3rem .65rem;font-size:.79rem;font-weight:700}
+.craft-hint{font-size:.7rem;color:#7c3aed;margin-top:.55rem;text-align:center}
+.result-btns{display:flex;gap:.7rem;flex-wrap:wrap;justify-content:center;margin-top:.6rem}
+</style>
+</head>
+<body>
+
+<canvas id="bgC"></canvas>
+<div id="flash"></div>
+<div id="itemLayer"></div>
+
+<!-- ═══ TITLE ════════════════════════════════════════════════════════ -->
+<div id="titleScreen" class="screen">
+  <div class="logo">Type Quest</div>
+  <div class="logo-sub">タイピング冒険の旅へ</div>
+  <div class="course-grid">
+    <div class="course-card" onclick="selectCourse('english')">
+      <div class="course-icon">🌍</div>
+      <div class="course-name">English World</div>
+      <div class="course-desc">英語タイピングを<br>楽しく学ぼう</div>
+    </div>
+    <div class="course-card" onclick="selectCourse('coding')">
+      <div class="course-icon">💻</div>
+      <div class="course-name">Coding Lab</div>
+      <div class="course-desc">プログラミング記号を<br>マスターしよう</div>
+    </div>
+  </div>
+  <a href="index.html" class="btn-home">🏠 ホームに戻る</a>
+</div>
+
+<!-- ═══ STAGE SELECT ══════════════════════════════════════════════════ -->
+<div id="stageScreen" class="screen hidden">
+  <div class="screen-title" id="stageTitle"></div>
+  <div class="logo-sub" id="stageSubTitle" style="margin-bottom:.8rem"></div>
+  <div class="stage-grid" id="stageGrid"></div>
+  <button class="btn-back" onclick="showScreen('titleScreen')">← コース選択に戻る</button>
+</div>
+
+<!-- ═══ GAME ══════════════════════════════════════════════════════════ -->
+<div id="gameScreen" class="screen hidden">
+  <div id="hud">
+    <div id="scoreEl">0</div>
+    <div id="wpmEl">0 WPM</div>
+    <div id="accEl">100%</div>
+    <div class="hud-sep"></div>
+    <div id="timerEl">90</div>
+    <button class="hud-btn" onclick="confirmExit()">✕</button>
+  </div>
+  <div id="gameArea">
+    <div id="stageLabel"></div>
+    <div id="wordEmoji"></div>
+    <div id="wordHint"></div>
+    <div id="typingDisplay"></div>
+    <div id="progressWrap"><div id="progressBar"></div></div>
+    <div id="wordCount"></div>
+    <div id="fingerLabel"></div>
+  </div>
+  <div id="handGuide">
+    <div id="leftHandSVG"></div>
+    <div id="rightHandSVG"></div>
+  </div>
+</div>
+
+<!-- ═══ RESULT ════════════════════════════════════════════════════════ -->
+<div id="resultScreen" class="screen hidden" style="text-align:center">
+  <div class="result-title" id="resultGrade"></div>
+  <div class="result-sub">RESULT</div>
+  <div class="stat-row">
+    <div class="stat-box"><div class="stat-val" id="rScore">0</div><div class="stat-lbl">SCORE</div></div>
+    <div class="stat-box"><div class="stat-val" id="rWPM">0</div><div class="stat-lbl">WPM</div></div>
+    <div class="stat-box"><div class="stat-val" id="rAcc">0%</div><div class="stat-lbl">正確率</div></div>
+    <div class="stat-box"><div class="stat-val" id="rWords">0</div><div class="stat-lbl">完了語数</div></div>
+  </div>
+  <div class="items-box">
+    <div class="items-box-ttl">🎁 GET アイテム</div>
+    <div class="items-chips" id="rItems"></div>
+    <div class="craft-hint" id="craftHint"></div>
+  </div>
+  <div class="result-btns">
+    <button class="btn-back" id="retryBtn">もう一度</button>
+    <button class="btn-back" onclick="showScreen('stageScreen')">ステージ選択</button>
+    <a href="index.html" class="btn-home">🏠 ホーム</a>
+  </div>
+</div>
+
+<script>
+// ─── STAGE DATA ─────────────────────────────────────────────────────────────
+const STAGES = [
+  /* ── English World ── */
+  {
+    id:'alpha', course:'english', name:'Alphabet & Sound', icon:'🔤',
+    desc:'A〜Z を打ちながら音を覚えよう', target:'幼児・小低学年',
+    color:'#a78bfa', tts:true, time:120,
+    words:[
+      {t:'a',h:'エー',e:'🍎'},{t:'b',h:'ビー',e:'🍌'},
+      {t:'c',h:'スィー',e:'🐱'},{t:'d',h:'ディー',e:'🐶'},
+      {t:'e',h:'イー',e:'🥚'},{t:'f',h:'エフ',e:'🐟'},
+      {t:'g',h:'ジー',e:'🍇'},{t:'h',h:'エイチ',e:'🏠'},
+      {t:'i',h:'アイ',e:'🍦'},{t:'j',h:'ジェイ',e:'🍬'},
+      {t:'k',h:'ケイ',e:'🪁'},{t:'l',h:'エル',e:'🦁'},
+      {t:'m',h:'エム',e:'🌙'},{t:'n',h:'エン',e:'📝'},
+      {t:'o',h:'オー',e:'🍊'},{t:'p',h:'ピー',e:'🐧'},
+      {t:'q',h:'キュー',e:'👑'},{t:'r',h:'アール',e:'🌹'},
+      {t:'s',h:'エス',e:'☀️'},{t:'t',h:'ティー',e:'🌴'},
+      {t:'u',h:'ユー',e:'☂️'},{t:'v',h:'ヴィー',e:'🎻'},
+      {t:'w',h:'ダブリュー',e:'🌊'},{t:'x',h:'エックス',e:'❌'},
+      {t:'y',h:'ワイ',e:'💛'},{t:'z',h:'ズィー',e:'🦓'},
+    ]
+  },
+  {
+    id:'vocab', course:'english', name:'Vocabulary Build', icon:'📚',
+    desc:'英検5〜3級の単語をタイピング', target:'小中学生',
+    color:'#60a5fa', tts:true, time:90,
+    words:[
+      {t:'apple',h:'りんご',e:'🍎'},{t:'book',h:'本',e:'📚'},
+      {t:'cat',h:'ねこ',e:'🐱'},{t:'dog',h:'いぬ',e:'🐶'},
+      {t:'egg',h:'たまご',e:'🥚'},{t:'fish',h:'さかな',e:'🐟'},
+      {t:'good',h:'よい',e:'👍'},{t:'hat',h:'ぼうし',e:'🎩'},
+      {t:'ice',h:'こおり',e:'🧊'},{t:'jump',h:'とぶ',e:'🦘'},
+      {t:'king',h:'おう',e:'👑'},{t:'love',h:'あい',e:'❤️'},
+      {t:'milk',h:'ぎゅうにゅう',e:'🥛'},{t:'name',h:'なまえ',e:'🏷️'},
+      {t:'open',h:'ひらく',e:'🚪'},{t:'play',h:'あそぶ',e:'🎮'},
+      {t:'run',h:'はしる',e:'🏃'},{t:'sun',h:'たいよう',e:'☀️'},
+      {t:'tree',h:'き',e:'🌳'},{t:'water',h:'みず',e:'💧'},
+      {t:'year',h:'ねん',e:'📅'},{t:'zoo',h:'どうぶつえん',e:'🦁'},
+      {t:'about',h:'〜について'},{t:'after',h:'〜のあとに'},
+      {t:'always',h:'いつも'},{t:'answer',h:'こたえる'},
+      {t:'before',h:'〜のまえに'},{t:'bring',h:'もってくる'},
+      {t:'clean',h:'きれいな'},{t:'dream',h:'ゆめ'},
+      {t:'every',h:'すべての'},{t:'enjoy',h:'たのしむ'},
+      {t:'famous',h:'有名な'},{t:'foreign',h:'外国の'},
+      {t:'history',h:'歴史'},{t:'improve',h:'向上させる'},
+      {t:'language',h:'言語'},{t:'message',h:'メッセージ'},
+    ]
+  },
+  {
+    id:'sentence', course:'english', name:'Sentence Master', icon:'✍️',
+    desc:'英文・日常会話を完成させよう', target:'中学生',
+    color:'#34d399', tts:false, time:90,
+    words:[
+      {t:'How are you?',h:'元気ですか？'},
+      {t:'Nice to meet you.',h:'はじめまして。'},
+      {t:'I like music.',h:'私は音楽が好きです。'},
+      {t:'What time is it?',h:'何時ですか？'},
+      {t:'Can you help me?',h:'手伝ってもらえますか？'},
+      {t:'I want to travel.',h:'旅行したいです。'},
+      {t:'She plays tennis.',h:'彼女はテニスをします。'},
+      {t:'We are friends.',h:'私たちは友達です。'},
+      {t:'He studies English.',h:'彼は英語を勉強します。'},
+      {t:'It is sunny today.',h:'今日は晴れています。'},
+      {t:'Where are you from?',h:'どこ出身ですか？'},
+      {t:'I enjoy reading books.',h:'読書が好きです。'},
+    ]
+  },
+  /* ── Coding Lab ── */
+  {
+    id:'romaji', course:'coding', name:'はじめての入力', icon:'⌨️',
+    desc:'ひらがなをローマ字で打ってみよう', target:'小3〜',
+    color:'#fb923c', tts:false, time:90,
+    words:[
+      {t:'a',h:'あ',e:'🍎'},{t:'i',h:'い',e:'🐬'},{t:'u',h:'う',e:'🐄'},
+      {t:'e',h:'え',e:'✉️'},{t:'o',h:'お',e:'👦'},
+      {t:'ka',h:'か',e:'🐚'},{t:'ki',h:'き',e:'🌲'},{t:'ku',h:'く',e:'☁️'},
+      {t:'ke',h:'け',e:'🌿'},{t:'ko',h:'こ',e:'🧸'},
+      {t:'sa',h:'さ',e:'🐠'},{t:'si',h:'し',e:'🔖'},{t:'su',h:'す',e:'🍉'},
+      {t:'ta',h:'た',e:'🥁'},{t:'ti',h:'ち',e:'🦋'},{t:'tu',h:'つ',e:'🌙'},
+      {t:'na',h:'な',e:'🍆'},{t:'ni',h:'に',e:'🌈'},{t:'ne',h:'ね',e:'😸'},
+      {t:'ha',h:'は',e:'🌸'},{t:'hi',h:'ひ',e:'✨'},{t:'hu',h:'ふ',e:'🌬️'},
+      {t:'neko',h:'ねこ',e:'🐱'},{t:'inu',h:'いぬ',e:'🐶'},
+      {t:'hana',h:'はな',e:'🌸'},{t:'mizu',h:'みず',e:'💧'},
+      {t:'sora',h:'そら',e:'☁️'},{t:'yama',h:'やま',e:'🗻'},
+      {t:'sakura',h:'さくら',e:'🌸'},{t:'natsu',h:'なつ',e:'☀️'},
+      {t:'haru',h:'はる',e:'🌸'},{t:'fuyu',h:'ふゆ',e:'❄️'},
+    ]
+  },
+  {
+    id:'itkw', course:'coding', name:'IT キーワード', icon:'💡',
+    desc:'プログラミング用語を英語で打とう', target:'小中学生',
+    color:'#fbbf24', tts:false, time:60,
+    words:[
+      {t:'click',h:'クリックする'},{t:'code',h:'コード'},
+      {t:'data',h:'データ'},{t:'debug',h:'バグを直す'},
+      {t:'else',h:'それ以外'},{t:'false',h:'偽（ウソ）'},
+      {t:'file',h:'ファイル'},{t:'for',h:'繰り返し'},
+      {t:'function',h:'関数・機能'},{t:'if',h:'もし〜なら'},
+      {t:'import',h:'取り込む'},{t:'input',h:'入力'},
+      {t:'int',h:'整数'},{t:'loop',h:'ループ'},
+      {t:'null',h:'空・なし'},{t:'output',h:'出力'},
+      {t:'print',h:'表示する'},{t:'return',h:'返す'},
+      {t:'string',h:'文字列'},{t:'true',h:'真（ホント）'},
+      {t:'type',h:'型・種類'},{t:'variable',h:'変数'},
+      {t:'while',h:'〜の間くり返す'},{t:'array',h:'配列'},
+      {t:'object',h:'オブジェクト'},{t:'class',h:'クラス'},
+    ]
+  },
+  {
+    id:'python', course:'coding', name:'Python Mastery', icon:'🐍',
+    desc:'Python構文・記号の連続入力を特訓', target:'中高生',
+    color:'#4ade80', tts:false, time:90,
+    words:[
+      {t:'print("hello")',h:'文字を表示する'},
+      {t:'x = 10',h:'変数xに10を代入'},
+      {t:'if x > 0:',h:'xが0より大きければ'},
+      {t:'for i in range(10):',h:'10回繰り返す'},
+      {t:'def hello():',h:'関数を定義する'},
+      {t:'return True',h:'Trueを返す'},
+      {t:'import os',h:'osモジュールを読み込む'},
+      {t:'x = [1, 2, 3]',h:'リストを作る'},
+      {t:'print(x[0])',h:'最初の要素を表示'},
+      {t:'x.append(4)',h:'リストに4を追加'},
+      {t:'{"key": "value"}',h:'辞書型'},
+      {t:'x += 1',h:'xに1を足す'},
+      {t:'len(x)',h:'長さを取得'},
+      {t:'input("名前: ")',h:'キーボードから入力'},
+      {t:'while True:',h:'無限ループ'},
+      {t:'x = {"a": 1}',h:'辞書を作る'},
+      {t:'x[0:3]',h:'スライス（0〜2番目）'},
+      {t:'os.path.join()',h:'パスを結合する'},
+    ]
+  },
+];
+
+// ─── KEY → FINGER MAP ───────────────────────────────────────────────────────
+const KEY_FINGER = {
+  // ─ Left hand ─
+  '`':'L_PINKY','1':'L_PINKY','q':'L_PINKY','a':'L_PINKY','z':'L_PINKY',
+  '2':'L_RING','w':'L_RING','s':'L_RING','x':'L_RING',
+  '3':'L_MID','e':'L_MID','d':'L_MID','c':'L_MID',
+  '4':'L_INDEX','5':'L_INDEX','r':'L_INDEX','t':'L_INDEX',
+  'f':'L_INDEX','g':'L_INDEX','v':'L_INDEX','b':'L_INDEX',
+  // ─ Right hand ─
+  '6':'R_INDEX','7':'R_INDEX','y':'R_INDEX','u':'R_INDEX',
+  'h':'R_INDEX','j':'R_INDEX','n':'R_INDEX','m':'R_INDEX',
+  '8':'R_MID','i':'R_MID','k':'R_MID',',':'R_MID',
+  '9':'R_RING','o':'R_RING','l':'R_RING','.':'R_RING',
+  '0':'R_PINKY','-':'R_PINKY','=':'R_PINKY','p':'R_PINKY',
+  '[':'R_PINKY',']':'R_PINKY','\\':'R_PINKY',"'":'R_PINKY',';':'R_PINKY',
+  '/':'R_PINKY',
+  // ─ Space ─
+  ' ':'R_THUMB',
+  // ─ Shifted symbols (same finger as the base key) ─
+  '~':'L_PINKY','!':'L_PINKY','@':'L_RING','#':'L_MID',
+  '$':'L_INDEX','%':'L_INDEX',
+  '^':'R_INDEX','&':'R_INDEX','*':'R_MID',
+  '(':'R_RING',')':'R_PINKY','_':'R_PINKY','+':'R_PINKY',
+  '{':'R_PINKY','}':'R_PINKY','|':'R_PINKY',
+  ':':'R_PINKY','"':'R_PINKY','<':'R_MID','>':'R_RING','?':'R_PINKY',
+};
+
+const NEEDS_SHIFT = new Set('ABCDEFGHIJKLMNOPQRSTUVWXYZ!@#$%^&*()_+{}|:"<>?~');
+
+function getFingers(ch) {
+  const shift = NEEDS_SHIFT.has(ch);
+  const lookupKey = shift ? ch.toLowerCase() : ch;
+  const base = KEY_FINGER[lookupKey] || KEY_FINGER[ch];
+  if (!base) return [];
+  if (!shift || base.endsWith('THUMB')) return [base];
+  const shiftKey = base.startsWith('L') ? 'R_PINKY' : 'L_PINKY';
+  return [base, shiftKey];
+}
+
+const FINGER_LABEL = {
+  L_PINKY:'左・小指', L_RING:'左・薬指', L_MID:'左・中指',
+  L_INDEX:'左・人差し指', L_THUMB:'左・親指',
+  R_PINKY:'右・小指', R_RING:'右・薬指', R_MID:'右・中指',
+  R_INDEX:'右・人差し指', R_THUMB:'右・親指',
+};
+const FINGER_COLOR = {
+  L_PINKY:'#f87171', L_RING:'#fb923c', L_MID:'#fbbf24',
+  L_INDEX:'#4ade80', L_THUMB:'#60a5fa',
+  R_PINKY:'#f87171', R_RING:'#fb923c', R_MID:'#fbbf24',
+  R_INDEX:'#4ade80', R_THUMB:'#60a5fa',
+};
+const FINGER_EL = {
+  L_PINKY:'lPinky', L_RING:'lRing', L_MID:'lMid',
+  L_INDEX:'lIndex', L_THUMB:'lThumb',
+  R_PINKY:'rPinky', R_RING:'rRing', R_MID:'rMid',
+  R_INDEX:'rIndex', R_THUMB:'rThumb',
+};
+
+// ─── ITEMS ───────────────────────────────────────────────────────────────────
+const ITEMS = [
+  {id:'iron',    name:'鉄のクズ',    icon:'🔩', color:'#94a3b8', minAcc:0},
+  {id:'wood',    name:'木の欠片',    icon:'🪵', color:'#a16207', minAcc:0},
+  {id:'magic',   name:'魔力の粉',    icon:'✨', color:'#c4b5fd', minAcc:60},
+  {id:'code',    name:'コードの断片',icon:'💾', color:'#4ade80', minAcc:70},
+  {id:'crystal', name:'クリスタル',  icon:'💎', color:'#60a5fa', minAcc:85},
+  {id:'gear',    name:'歯車',        icon:'⚙️', color:'#fbbf24', minAcc:75},
+  {id:'ruby',    name:'ルビー',      icon:'🔴', color:'#f87171', minAcc:95},
+];
+const RECIPES = [
+  {needs:{iron:3},             result:'⚔️ 剣',      hint:'鉄のクズ×3で⚔️ 剣が作れる！'},
+  {needs:{code:2,magic:1},     result:'🤖 ロボット', hint:'コード×2＋魔力の粉で🤖 ロボット！'},
+  {needs:{crystal:1,gear:1,code:1}, result:'🚀 ロケット', hint:'クリスタル＋歯車＋コードで🚀！'},
+  {needs:{ruby:1,crystal:1},   result:'👑 王冠',     hint:'ルビー＋クリスタルで👑 王冠！'},
+];
+
+function calcDrop(acc, wpm) {
+  const pool = ITEMS.filter(it => acc >= it.minAcc);
+  if (!pool.length) return [];
+  const drops = [];
+  const chance = Math.min(.65, .2 + acc / 200 + wpm / 400);
+  if (Math.random() < chance) {
+    const sorted = [...pool].sort((a,b) => b.minAcc - a.minAcc);
+    const w = sorted.map((_, i) => Math.pow(.6, i));
+    const tot = w.reduce((a,b)=>a+b,0);
+    let r = Math.random() * tot;
+    for (let i = 0; i < sorted.length; i++) { r -= w[i]; if (r <= 0) { drops.push(sorted[i].id); break; } }
+  }
+  if (acc >= 95 && wpm >= 35 && Math.random() < .35) {
+    const rare = ITEMS.filter(it => it.minAcc >= 85);
+    if (rare.length) drops.push(rare[Math.floor(Math.random()*rare.length)].id);
+  }
+  return drops;
+}
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
+let curCourse = 'english', curStage = null;
+let gameActive = false;
+let wordList = [], wordIdx = 0, charIdx = 0;
+let timer = 90, timerInterval = null;
+let totalCorrect = 0, totalMiss = 0;
+let startTime = 0;
+let sessionItems = {};
+let combo = 0, score = 0;
+
+// ─── SCREENS ─────────────────────────────────────────────────────────────────
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
+  document.getElementById(id).classList.remove('hidden');
+}
+
+function selectCourse(course) {
+  curCourse = course;
+  document.getElementById('stageTitle').textContent =
+    course === 'english' ? '🌍 English World' : '💻 Coding Lab';
+  document.getElementById('stageSubTitle').textContent =
+    course === 'english' ? 'ステージを選んでください' : 'コースを選んでください';
+  const grid = document.getElementById('stageGrid');
+  grid.innerHTML = '';
+  STAGES.filter(s => s.course === course).forEach(s => {
+    const div = document.createElement('div');
+    div.className = 'stage-card';
+    div.style.cssText = `border-color:${s.color}22`;
+    div.innerHTML = `<div class="stage-icon">${s.icon}</div>
+      <div class="stage-name">${s.name}</div>
+      <div class="stage-desc">${s.desc}</div>
+      <div class="stage-target" style="color:${s.color}">${s.target} · ${s.time}秒</div>`;
+    div.onmouseenter = () => div.style.borderColor = s.color;
+    div.onmouseleave = () => div.style.borderColor = s.color + '22';
+    div.onclick = () => startGame(s);
+    grid.appendChild(div);
+  });
+  showScreen('stageScreen');
+}
+
+// ─── HAND SVG ─────────────────────────────────────────────────────────────────
+const SKIN = '#c4916a', PALM = '#a87548';
+
+function buildHands() {
+  document.getElementById('leftHandSVG').innerHTML  = makeHandSVG('left');
+  document.getElementById('rightHandSVG').innerHTML = makeHandSVG('right');
+}
+
+function makeHandSVG(side) {
+  const L = side === 'left';
+  // finger: [nameSuffix, x, y, w, h, label, isHomeKey]
+  const lFngs = [
+    ['Pinky', 10, 65, 26, 76, '小', false],
+    ['Ring',  40, 45, 26, 96, '薬', false],
+    ['Mid',   70, 32, 26,109, '中', false],
+    ['Index',100, 45, 26, 96, '人', true ],
+  ];
+  const rFngs = [
+    ['Index', 36, 45, 26, 96, '人', true ],
+    ['Mid',   66, 32, 26,109, '中', false],
+    ['Ring',  96, 45, 26, 96, '薬', false],
+    ['Pinky',126, 65, 26, 76, '小', false],
+  ];
+  const fngs = L ? lFngs : rFngs;
+  const glowId = `glow_${side}`;
+  const palmX = L ? 10 : 36;
+
+  let s = `<svg viewBox="0 0 162 210" width="148" height="192" style="overflow:visible">
+<defs>
+  <filter id="${glowId}" x="-80%" y="-80%" width="260%" height="260%">
+    <feGaussianBlur stdDeviation="5" result="b"/>
+    <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+  </filter>
+</defs>`;
+
+  // Palm
+  s += `<rect x="${palmX}" y="130" width="116" height="72" rx="20" fill="${PALM}"/>`;
+  s += `<rect x="${palmX+10}" y="191" width="96" height="15" rx="6" fill="${PALM}" opacity=".55"/>`;
+
+  // Thumb
+  if (L) {
+    s += `<g id="lThumb" class="finger">
+  <rect class="fng-rect" x="132" y="116" width="24" height="62" rx="12" fill="${SKIN}" transform="rotate(-38 144 151)"/>
+</g>`;
+  } else {
+    s += `<g id="rThumb" class="finger">
+  <rect class="fng-rect" x="6" y="116" width="24" height="62" rx="12" fill="${SKIN}" transform="rotate(38 18 151)"/>
+</g>`;
+  }
+
+  // 4 main fingers
+  fngs.forEach(([name, x, y, w, h, lbl, isHome]) => {
+    const id = (L ? 'l' : 'r') + name;
+    const cx = x + w/2;
+    const homeKey = L ? 'F' : 'J';
+    s += `<g id="${id}" class="finger">
+  <rect class="fng-rect" x="${x}" y="${y}" width="${w}" height="${h}" rx="13" fill="${SKIN}"/>
+  <text x="${cx}" y="${y+h-11}" text-anchor="middle" fill="rgba(0,0,0,.28)" font-size="8.5" font-family="sans-serif">${lbl}</text>
+  ${isHome ? `<rect class="home-dot" x="${x+3}" y="${y+h-23}" width="${w-6}" height="10" rx="3" fill="#7c3aed"/>
+  <text x="${cx}" y="${y+h-15}" text-anchor="middle" fill="#fff" font-size="7.5" font-weight="bold" font-family="monospace">${homeKey}</text>` : ''}
+</g>`;
+  });
+
+  const cx = L ? 68 : 94;
+  s += `<text x="${cx}" y="208" text-anchor="middle" fill="#2a2a50" font-size="9.5" font-family="sans-serif">${L ? '左手 (Left)' : '右手 (Right)'}</text>`;
+  s += `</svg>`;
+  return s;
+}
+
+function highlightFingers(codes) {
+  document.querySelectorAll('.finger .fng-rect').forEach(r => {
+    r.setAttribute('fill', SKIN);
+    r.closest('.finger').style.filter = '';
+  });
+  if (!codes || !codes.length) return;
+  const side = codes[0].startsWith('L') ? 'left' : 'right';
+  codes.forEach(code => {
+    const el = document.getElementById(FINGER_EL[code]);
+    if (!el) return;
+    const rect = el.querySelector('.fng-rect');
+    const col = FINGER_COLOR[code] || '#fff';
+    rect.setAttribute('fill', col);
+    const glowSide = code.startsWith('L') ? 'left' : 'right';
+    el.style.filter = `drop-shadow(0 0 9px ${col}) url(#glow_${glowSide})`;
+  });
+}
+
+// ─── GAME ─────────────────────────────────────────────────────────────────────
+function startGame(stage) {
+  curStage = stage;
+  wordList = [...stage.words].sort(() => Math.random() - .5).slice(0, 30);
+  wordIdx = charIdx = totalCorrect = totalMiss = combo = score = 0;
+  timer = stage.time || 90;
+  startTime = Date.now();
+  sessionItems = {};
+  gameActive = true;
+
+  document.getElementById('stageLabel').textContent = `${stage.icon}  ${stage.name}`;
+  document.getElementById('retryBtn').onclick = () => startGame(curStage);
+  buildHands();
+  showScreen('gameScreen');
+  loadWord();
+  startTimer();
+  document.addEventListener('keydown', onKeyDown);
+}
+
+function startTimer() {
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    if (!gameActive) return;
+    if (--timer <= 0) { timer = 0; updateHUD(); endGame(); }
+    else updateHUD();
+  }, 1000);
+}
+
+function loadWord() {
+  if (wordIdx >= wordList.length) { endGame(); return; }
+  const word = wordList[wordIdx];
+  charIdx = 0;
+  document.getElementById('wordHint').textContent  = word.h || '';
+  document.getElementById('wordEmoji').textContent = word.e || '';
+  document.getElementById('progressBar').style.width = (wordIdx / wordList.length * 100) + '%';
+  document.getElementById('wordCount').textContent = `${wordIdx + 1} / ${wordList.length}`;
+
+  const disp = document.getElementById('typingDisplay');
+  disp.innerHTML = '';
+  [...word.t].forEach((ch, i) => {
+    const sp = document.createElement('span');
+    sp.className = 'ch' + (i === 0 ? ' cur' : '');
+    sp.textContent = ch;
+    disp.appendChild(sp);
+  });
+
+  if (curStage.tts && word.t.length <= 2) speak(word.t);
+  updateHandGuide();
+  updateHUD();
+}
+
+function updateHandGuide() {
+  const word = wordList[wordIdx];
+  if (!word || charIdx >= word.t.length) { highlightFingers([]); document.getElementById('fingerLabel').textContent = ''; return; }
+  const ch = word.t[charIdx];
+  const fingers = getFingers(ch);
+  highlightFingers(fingers);
+  const disp  = ch === ' ' ? 'スペース' : `"${ch}"`;
+  const names = fingers.map(f => FINGER_LABEL[f] || f).join(' ＋ ');
+  const shift = NEEDS_SHIFT.has(ch) ? '  （Shiftキー）' : '';
+  document.getElementById('fingerLabel').textContent = `${disp} → ${names}${shift}`;
+}
+
+function onKeyDown(e) {
+  if (!gameActive) return;
+  if (e.key === 'Escape') { confirmExit(); return; }
+  if (['Tab','F5'].includes(e.key)) { e.preventDefault(); return; }
+  if (['Shift','Control','Alt','Meta','CapsLock','Dead'].includes(e.key)) return;
+
+  const word = wordList[wordIdx];
+  if (!word) return;
+  if (e.key === word.t[charIdx]) onCorrectChar();
+  else onMissChar();
+}
+
+function onCorrectChar() {
+  const spans = document.getElementById('typingDisplay').querySelectorAll('.ch');
+  spans[charIdx].classList.remove('cur');
+  spans[charIdx].classList.add('done');
+  charIdx++;
+  totalCorrect++;
+
+  if (charIdx >= wordList[wordIdx].t.length) {
+    onWordComplete();
+  } else {
+    spans[charIdx].classList.add('cur');
+    updateHandGuide();
+  }
+  recalcScore();
+  updateHUD();
+}
+
+function onMissChar() {
+  totalMiss++;
+  combo = 0;
+  const spans = document.getElementById('typingDisplay').querySelectorAll('.ch');
+  const sp = spans[charIdx];
+  sp.classList.add('miss');
+  setTimeout(() => sp.classList.remove('miss'), 280);
+  flashScreen('rgba(248,113,113,.2)');
+  recalcScore();
+  updateHUD();
+}
+
+function onWordComplete() {
+  const word = wordList[wordIdx];
+  if (curStage.tts && word.t.length > 1) speak(word.t);
+  combo++;
+  if (combo >= 2) showComboPop(combo);
+  flashScreen('rgba(74,222,128,.14)');
+
+  // Item drops
+  const acc = calcAcc(), wpm = calcWPM();
+  calcDrop(acc, wpm).forEach(id => {
+    sessionItems[id] = (sessionItems[id] || 0) + 1;
+    showItemPop(ITEMS.find(it => it.id === id));
+  });
+
+  wordIdx++;
+  if (wordIdx >= wordList.length) setTimeout(endGame, 400);
+  else setTimeout(loadWord, 220);
+}
+
+function recalcScore() {
+  const sp = Math.max(1, calcWPM() / 20);
+  score = Math.max(0, Math.round(totalCorrect * sp - totalMiss * 10));
+}
+function calcWPM() {
+  const min = (Date.now() - startTime) / 60000;
+  return min < .01 ? 0 : Math.round((totalCorrect / 5) / min);
+}
+function calcAcc() {
+  const t = totalCorrect + totalMiss;
+  return t === 0 ? 100 : Math.round(totalCorrect / t * 100);
+}
+function updateHUD() {
+  document.getElementById('scoreEl').textContent = score;
+  document.getElementById('wpmEl').textContent   = calcWPM() + ' WPM';
+  document.getElementById('accEl').textContent   = calcAcc() + '%';
+  const el = document.getElementById('timerEl');
+  el.textContent = timer;
+  el.style.color = timer <= 10 ? '#f87171' : timer <= 20 ? '#fb923c' : '#fff';
+}
+
+// ─── END GAME ─────────────────────────────────────────────────────────────────
+function endGame() {
+  if (!gameActive) return;
+  gameActive = false;
+  clearInterval(timerInterval);
+  document.removeEventListener('keydown', onKeyDown);
+  highlightFingers([]);
+
+  const acc = calcAcc(), wpm = calcWPM();
+  const grade = acc>=95&&wpm>=40?'S' : acc>=88&&wpm>=28?'A' : acc>=75?'B' : acc>=60?'C' : 'D';
+
+  document.getElementById('resultGrade').textContent = `GRADE ${grade}`;
+  document.getElementById('rScore').textContent = score;
+  document.getElementById('rWPM').textContent   = wpm;
+  document.getElementById('rAcc').textContent   = acc + '%';
+  document.getElementById('rWords').textContent = wordIdx;
+
+  // Items
+  const chips = document.getElementById('rItems');
+  chips.innerHTML = '';
+  const itemKeys = Object.keys(sessionItems);
+  if (itemKeys.length === 0) {
+    chips.innerHTML = '<div style="color:#333;font-size:.75rem;padding:.2rem">アイテムはゲットできませんでした… もっとがんばろう！</div>';
+  } else {
+    itemKeys.forEach(id => {
+      const it = ITEMS.find(x => x.id === id);
+      if (!it) return;
+      const div = document.createElement('div');
+      div.className = 'item-chip';
+      div.innerHTML = `${it.icon}<span style="color:${it.color}">${it.name}</span><span style="color:#555">×${sessionItems[id]}</span>`;
+      chips.appendChild(div);
+    });
+  }
+
+  // Craft hint
+  const hintEl = document.getElementById('craftHint');
+  hintEl.textContent = '';
+  for (const r of RECIPES) {
+    const canCraft = Object.entries(r.needs).every(([id,cnt]) => (sessionItems[id]||0) >= cnt);
+    if (canCraft) { hintEl.textContent = `🔨 クラフト可能：${r.result}`; break; }
+  }
+  if (!hintEl.textContent) {
+    const partial = RECIPES.find(r => Object.keys(r.needs).some(id => sessionItems[id]));
+    if (partial) hintEl.textContent = `💡 ${partial.hint}`;
+  }
+
+  setTimeout(() => showScreen('resultScreen'), 300);
+}
+
+function confirmExit() {
+  if (confirm('ゲームを終了しますか？')) {
+    gameActive = false;
+    clearInterval(timerInterval);
+    document.removeEventListener('keydown', onKeyDown);
+    showScreen('stageScreen');
+  }
+}
+
+// ─── VISUAL FEEDBACK ──────────────────────────────────────────────────────────
+function flashScreen(col) {
+  const f = document.getElementById('flash');
+  f.style.background = col;
+  f.style.opacity = '1';
+  setTimeout(() => { f.style.opacity = '0'; }, 140);
+}
+
+function showItemPop(item) {
+  if (!item) return;
+  const el = document.createElement('div');
+  el.className = 'item-pop';
+  el.innerHTML = `${item.icon} <span style="color:${item.color}">${item.name}</span> GET!`;
+  document.getElementById('itemLayer').appendChild(el);
+  setTimeout(() => el.remove(), 2200);
+}
+
+function showComboPop(n) {
+  const el = document.createElement('div');
+  el.className = 'combo-pop';
+  el.textContent = `${n} COMBO!`;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 750);
+}
+
+// ─── TTS ──────────────────────────────────────────────────────────────────────
+function speak(text) {
+  if (!window.speechSynthesis) return;
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = 'en-US'; u.rate = .82;
+  speechSynthesis.cancel();
+  speechSynthesis.speak(u);
+}
+
+// ─── BACKGROUND ───────────────────────────────────────────────────────────────
+(function() {
+  const c = document.getElementById('bgC');
+  const ctx = c.getContext('2d');
+  let stars = [];
+  function resize() {
+    c.width = innerWidth; c.height = innerHeight;
+    stars = Array.from({length:90}, () => ({
+      x:Math.random()*c.width, y:Math.random()*c.height,
+      r:Math.random()*1.2+.2, a:Math.random(), s:(Math.random()*.006+.002)*(Math.random()<.5?1:-1)
+    }));
+  }
+  function draw() {
+    ctx.clearRect(0,0,c.width,c.height);
+    stars.forEach(s => {
+      s.a += s.s;
+      if (s.a > 1) { s.a=1; s.s=-Math.abs(s.s); }
+      if (s.a < 0) { s.a=0; s.s=Math.abs(s.s); }
+      ctx.globalAlpha = s.a * .65;
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+      ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+    requestAnimationFrame(draw);
+  }
+  resize();
+  addEventListener('resize', resize);
+  draw();
+})();
+</script>
+</body>
+</html>
