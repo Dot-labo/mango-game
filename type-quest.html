@@ -138,6 +138,43 @@ html,body{width:100%;height:100%;overflow:hidden;background:#06071a;color:#fff;
   border-radius:7px;padding:.3rem .65rem;font-size:.79rem;font-weight:700}
 .craft-hint{font-size:.7rem;color:#7c3aed;margin-top:.55rem;text-align:center}
 .result-btns{display:flex;gap:.7rem;flex-wrap:wrap;justify-content:center;margin-top:.6rem}
+
+/* ── ITEM REVEAL OVERLAY ─────────────────── */
+#revealOverlay{position:fixed;inset:0;z-index:300;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;background:rgba(2,1,20,.96);
+  backdrop-filter:blur(6px)}
+#revealOverlay.hidden{display:none}
+.reveal-header{font-size:.82rem;color:#a78bfa;letter-spacing:.22em;text-transform:uppercase;
+  margin-bottom:1.2rem;animation:rvPulse 1.4s ease-in-out infinite}
+@keyframes rvPulse{0%,100%{opacity:.6}50%{opacity:1}}
+.reveal-card{display:flex;flex-direction:column;align-items:center;gap:.6rem;
+  animation:rvPop .55s cubic-bezier(.34,1.56,.64,1)}
+@keyframes rvPop{from{transform:scale(.4) translateY(60px);opacity:0}to{transform:none;opacity:1}}
+.rv-rarity{display:flex;gap:.18rem;font-size:1.2rem;margin-bottom:.2rem}
+.rv-star{opacity:.22;transition:opacity .25s}
+.rv-star.lit{opacity:1}
+.rv-emoji{font-size:7.5rem;line-height:1;filter:drop-shadow(0 0 40px var(--ic,#fff));
+  animation:rvBounce 1.2s ease-in-out infinite}
+@keyframes rvBounce{0%,100%{transform:translateY(0) scale(1)}
+  50%{transform:translateY(-14px) scale(1.07)}}
+.rv-name{font-size:2.5rem;font-weight:900;color:var(--ic,#fff);
+  text-shadow:0 0 40px var(--ic,#fff),0 0 80px var(--ic,#fff33);
+  animation:rvGlow 1.5s ease-in-out infinite}
+@keyframes rvGlow{0%,100%{filter:brightness(1)}50%{filter:brightness(1.3)}}
+.rv-desc{font-size:1rem;color:#888;margin-top:-.2rem}
+.rv-get{font-size:1.5rem;font-weight:900;color:#fcd34d;
+  text-shadow:0 0 20px rgba(252,211,77,.8);animation:rvPulse 1s ease-in-out infinite}
+.rv-cnt{font-size:.72rem;color:#555;margin-top:.1rem}
+.rv-next{margin-top:1.6rem;background:rgba(255,255,255,.08);
+  border:1.5px solid rgba(255,255,255,.25);color:#fff;
+  border-radius:40px;padding:.65rem 2rem;font-size:.95rem;font-weight:700;
+  cursor:pointer;transition:all .18s;letter-spacing:.08em}
+.rv-next:hover{background:rgba(255,255,255,.18);transform:scale(1.05)}
+/* Particles */
+.rv-particles{position:fixed;inset:0;pointer-events:none;z-index:301;overflow:hidden}
+.rv-p{position:absolute;border-radius:50%;animation:rvFall linear forwards}
+@keyframes rvFall{0%{transform:translateY(-20px) rotate(0deg);opacity:1}
+  100%{transform:translateY(110vh) rotate(720deg);opacity:0}}
 </style>
 </head>
 <body>
@@ -145,6 +182,13 @@ html,body{width:100%;height:100%;overflow:hidden;background:#06071a;color:#fff;
 <canvas id="bgC"></canvas>
 <div id="flash"></div>
 <div id="itemLayer"></div>
+
+<!-- ═══ ITEM REVEAL OVERLAY ════════════════════════════════════════════ -->
+<div id="revealOverlay" class="hidden">
+  <div class="rv-particles" id="rvParticles"></div>
+  <div class="reveal-header">✨ アイテムゲット ✨</div>
+  <div class="reveal-card" id="revealCard"></div>
+</div>
 
 <!-- ═══ TITLE ════════════════════════════════════════════════════════ -->
 <div id="titleScreen" class="screen">
@@ -416,37 +460,79 @@ const FINGER_EL = {
 };
 
 // ─── ITEMS ───────────────────────────────────────────────────────────────────
+// rarity: 1=コモン 2=アンコモン 3=レア 4=スーパーレア
 const ITEMS = [
-  {id:'iron',    name:'鉄のクズ',    icon:'🔩', color:'#94a3b8', minAcc:0},
-  {id:'wood',    name:'木の欠片',    icon:'🪵', color:'#a16207', minAcc:0},
-  {id:'magic',   name:'魔力の粉',    icon:'✨', color:'#c4b5fd', minAcc:60},
-  {id:'code',    name:'コードの断片',icon:'💾', color:'#4ade80', minAcc:70},
-  {id:'crystal', name:'クリスタル',  icon:'💎', color:'#60a5fa', minAcc:85},
-  {id:'gear',    name:'歯車',        icon:'⚙️', color:'#fbbf24', minAcc:75},
-  {id:'ruby',    name:'ルビー',      icon:'🔴', color:'#f87171', minAcc:95},
-];
-const RECIPES = [
-  {needs:{iron:3},             result:'⚔️ 剣',      hint:'鉄のクズ×3で⚔️ 剣が作れる！'},
-  {needs:{code:2,magic:1},     result:'🤖 ロボット', hint:'コード×2＋魔力の粉で🤖 ロボット！'},
-  {needs:{crystal:1,gear:1,code:1}, result:'🚀 ロケット', hint:'クリスタル＋歯車＋コードで🚀！'},
-  {needs:{ruby:1,crystal:1},   result:'👑 王冠',     hint:'ルビー＋クリスタルで👑 王冠！'},
+  /* ★ コモン */
+  {id:'pizza',    name:'ピザ',        icon:'🍕', color:'#fbbf24', rarity:1, desc:'おいしそう！'},
+  {id:'cookie',   name:'クッキー',    icon:'🍪', color:'#d97706', rarity:1, desc:'さくさく！'},
+  {id:'candy',    name:'キャンディ',  icon:'🍭', color:'#f43f5e', rarity:1, desc:'あま〜い！'},
+  {id:'icecream', name:'アイス',      icon:'🍦', color:'#67e8f9', rarity:1, desc:'つめた〜い！'},
+  {id:'donut',    name:'ドーナツ',    icon:'🍩', color:'#fb923c', rarity:1, desc:'あなのなぞ！'},
+  {id:'star',     name:'ほし',        icon:'⭐', color:'#fcd34d', rarity:1, desc:'きらきら！'},
+  {id:'balloon',  name:'ふうせん',    icon:'🎈', color:'#f87171', rarity:1, desc:'ふわふわ！'},
+  {id:'pencil',   name:'えんぴつ',    icon:'✏️', color:'#fbbf24', rarity:1, desc:'かけるよ！'},
+  {id:'apple',    name:'りんご',      icon:'🍎', color:'#ef4444', rarity:1, desc:'まいにち食べよう'},
+  {id:'banana',   name:'バナナ',      icon:'🍌', color:'#fbbf24', rarity:1, desc:'ゴリラも好き！'},
+  /* ★★ アンコモン */
+  {id:'rabbit',   name:'うさぎ',      icon:'🐰', color:'#f9a8d4', rarity:2, desc:'ぴょんぴょん！'},
+  {id:'panda',    name:'パンダ',      icon:'🐼', color:'#e2e8f0', rarity:2, desc:'もぐもぐ！'},
+  {id:'dolphin',  name:'イルカ',      icon:'🐬', color:'#60a5fa', rarity:2, desc:'かしこい！'},
+  {id:'fox',      name:'きつね',      icon:'🦊', color:'#fb923c', rarity:2, desc:'ずるがしこい？'},
+  {id:'rainbow',  name:'にじ',        icon:'🌈', color:'#a78bfa', rarity:2, desc:'きれい！'},
+  {id:'rocket',   name:'ロケット',    icon:'🚀', color:'#818cf8', rarity:2, desc:'宇宙へ！'},
+  {id:'trophy',   name:'トロフィー',  icon:'🏆', color:'#fbbf24', rarity:2, desc:'がんばった！'},
+  {id:'gamepad',  name:'ゲーム機',    icon:'🎮', color:'#4ade80', rarity:2, desc:'あそぼう！'},
+  {id:'dinosaur', name:'きょうりゅう',icon:'🦕', color:'#86efac', rarity:2, desc:'はるか昔の生き物！'},
+  {id:'catbus',   name:'ロボット',    icon:'🤖', color:'#94a3b8', rarity:2, desc:'びぃぃいん！'},
+  /* ★★★ レア */
+  {id:'dragon',   name:'ドラゴン',    icon:'🐲', color:'#4ade80', rarity:3, desc:'つよい！伝説の生き物！'},
+  {id:'diamond',  name:'ダイヤ',      icon:'💎', color:'#67e8f9', rarity:3, desc:'もっともかたい石！'},
+  {id:'crown',    name:'おうかん',    icon:'👑', color:'#fbbf24', rarity:3, desc:'おうさまになれる！'},
+  {id:'wand',     name:'まほうのつえ',icon:'🪄', color:'#c4b5fd', rarity:3, desc:'なんでもできる！'},
+  {id:'shooting', name:'りゅうせい',  icon:'🌠', color:'#fcd34d', rarity:3, desc:'ねがいをかなえる！'},
+  {id:'sword',    name:'でんせつの剣',icon:'⚔️', color:'#94a3b8', rarity:3, desc:'勇者のしるし！'},
+  /* ★★★★ スーパーレア */
+  {id:'unicorn',  name:'ユニコーン',  icon:'🦄', color:'#f9a8d4', rarity:4, desc:'めったに会えない！'},
+  {id:'comet',    name:'ほうき星',    icon:'☄️', color:'#fcd34d', rarity:4, desc:'激レア！'},
+  {id:'galaxy',   name:'ぎんが',      icon:'🌌', color:'#818cf8', rarity:4, desc:'超激レア！！'},
+  {id:'lightning',name:'いなずま',    icon:'⚡', color:'#fbbf24', rarity:4, desc:'一瞬の奇跡！'},
 ];
 
+const RARITY_INFO = [
+  null,
+  {name:'コモン',      color:'#94a3b8', stars:'★☆☆☆'},
+  {name:'アンコモン',  color:'#4ade80', stars:'★★☆☆'},
+  {name:'レア',        color:'#60a5fa', stars:'★★★☆'},
+  {name:'スーパーレア',color:'#fbbf24', stars:'★★★★'},
+];
+
+const RECIPES = [
+  {needs:{cookie:2,candy:1}, result:'🎂 ケーキ', hint:'クッキー×2＋キャンディでケーキ！'},
+  {needs:{dragon:1,sword:1}, result:'🗡️ ドラゴンソード', hint:'ドラゴン＋剣で最強の武器！'},
+  {needs:{diamond:1,crown:1},result:'💍 でんせつのゆびわ', hint:'ダイヤ＋王冠で伝説の指輪！'},
+  {needs:{unicorn:1,wand:1}, result:'🌟 奇跡のほし', hint:'ユニコーン＋杖で奇跡が起きる！'},
+];
+
+let sessionDrops = []; // array of item objects (each drop is a separate entry)
+
 function calcDrop(acc, wpm) {
-  const pool = ITEMS.filter(it => acc >= it.minAcc);
-  if (!pool.length) return [];
+  // Determine which rarity levels are available
+  const maxRarity = acc >= 88 ? 4 : acc >= 70 ? 3 : acc >= 50 ? 2 : 1;
+  const pool = ITEMS.filter(it => it.rarity <= maxRarity);
   const drops = [];
-  const chance = Math.min(.65, .2 + acc / 200 + wpm / 400);
+  const chance = Math.min(.7, .25 + acc / 250 + wpm / 500);
   if (Math.random() < chance) {
-    const sorted = [...pool].sort((a,b) => b.minAcc - a.minAcc);
-    const w = sorted.map((_, i) => Math.pow(.6, i));
-    const tot = w.reduce((a,b)=>a+b,0);
+    // Weight towards common: rarity 1→weight 40, 2→20, 3→8, 4→3
+    const weights = [0, 40, 20, 8, 3];
+    const eligible = pool.map(it => ({it, w: weights[it.rarity]}));
+    const tot = eligible.reduce((s, x) => s + x.w, 0);
     let r = Math.random() * tot;
-    for (let i = 0; i < sorted.length; i++) { r -= w[i]; if (r <= 0) { drops.push(sorted[i].id); break; } }
+    for (const {it, w} of eligible) { r -= w; if (r <= 0) { drops.push(it); break; } }
   }
-  if (acc >= 95 && wpm >= 35 && Math.random() < .35) {
-    const rare = ITEMS.filter(it => it.minAcc >= 85);
-    if (rare.length) drops.push(rare[Math.floor(Math.random()*rare.length)].id);
+  // Bonus drop for excellent play
+  if (acc >= 90 && wpm >= 30 && Math.random() < .28) {
+    const bonus = ITEMS.filter(it => it.rarity >= 2 && it.rarity <= maxRarity);
+    if (bonus.length) drops.push(bonus[Math.floor(Math.random()*bonus.length)]);
   }
   return drops;
 }
@@ -458,7 +544,7 @@ let wordList = [], wordIdx = 0, charIdx = 0;
 let timer = 90, timerInterval = null;
 let totalCorrect = 0, totalMiss = 0;
 let startTime = 0;
-let sessionItems = {};
+let sessionDrops = [];
 let combo = 0, score = 0;
 
 // ─── SCREENS ─────────────────────────────────────────────────────────────────
@@ -585,7 +671,7 @@ function startGame(stage) {
   wordIdx = charIdx = totalCorrect = totalMiss = combo = score = 0;
   timer = stage.time || 90;
   startTime = Date.now();
-  sessionItems = {};
+  sessionDrops = [];
   gameActive = true;
 
   document.getElementById('stageLabel').textContent = `${stage.icon}  ${stage.name}`;
@@ -691,9 +777,10 @@ function onWordComplete() {
 
   // Item drops
   const acc = calcAcc(), wpm = calcWPM();
-  calcDrop(acc, wpm).forEach(id => {
-    sessionItems[id] = (sessionItems[id] || 0) + 1;
-    showItemPop(ITEMS.find(it => it.id === id));
+  const drops = calcDrop(acc, wpm);
+  drops.forEach(item => {
+    sessionDrops.push(item);
+    showItemMiniPop(item);
   });
 
   wordIdx++;
@@ -733,25 +820,25 @@ function endGame() {
   const acc = calcAcc(), wpm = calcWPM();
   const grade = acc>=95&&wpm>=40?'S' : acc>=88&&wpm>=28?'A' : acc>=75?'B' : acc>=60?'C' : 'D';
 
+  // Build result data
   document.getElementById('resultGrade').textContent = `GRADE ${grade}`;
   document.getElementById('rScore').textContent = score;
   document.getElementById('rWPM').textContent   = wpm;
   document.getElementById('rAcc').textContent   = acc + '%';
   document.getElementById('rWords').textContent = wordIdx;
 
-  // Items
+  // Group items for result screen
+  const grouped = {};
+  sessionDrops.forEach(it => { grouped[it.id] = (grouped[it.id] || {item:it, cnt:0}); grouped[it.id].cnt++; });
   const chips = document.getElementById('rItems');
   chips.innerHTML = '';
-  const itemKeys = Object.keys(sessionItems);
-  if (itemKeys.length === 0) {
+  if (!Object.keys(grouped).length) {
     chips.innerHTML = '<div style="color:#333;font-size:.75rem;padding:.2rem">アイテムはゲットできませんでした… もっとがんばろう！</div>';
   } else {
-    itemKeys.forEach(id => {
-      const it = ITEMS.find(x => x.id === id);
-      if (!it) return;
+    Object.values(grouped).forEach(({item:it, cnt}) => {
       const div = document.createElement('div');
       div.className = 'item-chip';
-      div.innerHTML = `${it.icon}<span style="color:${it.color}">${it.name}</span><span style="color:#555">×${sessionItems[id]}</span>`;
+      div.innerHTML = `${it.icon}<span style="color:${it.color}">${it.name}</span><span style="color:#555">×${cnt}</span>`;
       chips.appendChild(div);
     });
   }
@@ -759,16 +846,20 @@ function endGame() {
   // Craft hint
   const hintEl = document.getElementById('craftHint');
   hintEl.textContent = '';
+  const counts = {};
+  sessionDrops.forEach(it => { counts[it.id] = (counts[it.id]||0)+1; });
   for (const r of RECIPES) {
-    const canCraft = Object.entries(r.needs).every(([id,cnt]) => (sessionItems[id]||0) >= cnt);
-    if (canCraft) { hintEl.textContent = `🔨 クラフト可能：${r.result}`; break; }
+    if (Object.entries(r.needs).every(([id,n]) => (counts[id]||0) >= n)) {
+      hintEl.textContent = `🔨 クラフト可能：${r.result}`; break;
+    }
   }
   if (!hintEl.textContent) {
-    const partial = RECIPES.find(r => Object.keys(r.needs).some(id => sessionItems[id]));
+    const partial = RECIPES.find(r => Object.keys(r.needs).some(id => counts[id]));
     if (partial) hintEl.textContent = `💡 ${partial.hint}`;
   }
 
-  setTimeout(() => showScreen('resultScreen'), 300);
+  // Show item reveal then result
+  setTimeout(() => showRevealSequence(sessionDrops, () => showScreen('resultScreen')), 350);
 }
 
 function confirmExit() {
@@ -788,13 +879,87 @@ function flashScreen(col) {
   setTimeout(() => { f.style.opacity = '0'; }, 140);
 }
 
-function showItemPop(item) {
+// Small in-game notification (during play)
+function showItemMiniPop(item) {
   if (!item) return;
   const el = document.createElement('div');
   el.className = 'item-pop';
-  el.innerHTML = `${item.icon} <span style="color:${item.color}">${item.name}</span> GET!`;
+  const ri = RARITY_INFO[item.rarity];
+  el.innerHTML = `${item.icon} <span style="color:${item.color}">${item.name}</span> <span style="color:${ri.color};font-size:.68rem">${ri.stars}</span>`;
   document.getElementById('itemLayer').appendChild(el);
   setTimeout(() => el.remove(), 2200);
+}
+
+// ─── ITEM REVEAL SEQUENCE ─────────────────────────────────────────────────────
+function showRevealSequence(drops, onDone) {
+  if (!drops.length) { onDone(); return; }
+  const overlay = document.getElementById('revealOverlay');
+  const card    = document.getElementById('revealCard');
+  const ptcl    = document.getElementById('rvParticles');
+  let idx = 0;
+
+  function spawnParticles(color) {
+    ptcl.innerHTML = '';
+    const colors = [color, '#fff', '#fcd34d', color, '#a78bfa'];
+    for (let i = 0; i < 55; i++) {
+      const p = document.createElement('div');
+      p.className = 'rv-p';
+      const size = Math.random() * 10 + 4;
+      const dur  = Math.random() * 2.5 + 1.5;
+      const del  = Math.random() * .8;
+      p.style.cssText = `width:${size}px;height:${size}px;
+        left:${Math.random()*100}%;top:-20px;
+        background:${colors[Math.floor(Math.random()*colors.length)]};
+        opacity:.85;
+        animation-duration:${dur}s;animation-delay:${del}s`;
+      ptcl.appendChild(p);
+    }
+  }
+
+  function showItem() {
+    const item = drops[idx];
+    const ri = RARITY_INFO[item.rarity];
+    const total = drops.length;
+
+    // Re-trigger pop animation by replacing the card
+    card.style.animation = 'none';
+    void card.offsetWidth;
+    card.style.animation = '';
+
+    const stars = [1,2,3,4].map(n =>
+      `<span class="rv-star${n <= item.rarity ? ' lit' : ''}" style="color:${ri.color}">${n <= item.rarity ? '★' : '☆'}</span>`
+    ).join('');
+
+    card.innerHTML = `
+      <div class="rv-rarity">${stars}
+        <span style="font-size:.82rem;color:${ri.color};margin-left:.4rem;letter-spacing:.12em">${ri.name}</span>
+      </div>
+      <div class="rv-emoji" style="--ic:${item.color}">${item.icon}</div>
+      <div class="rv-name" style="--ic:${item.color}">${item.name}</div>
+      <div class="rv-desc">${item.desc}</div>
+      <div class="rv-get">🎉 ゲット！</div>
+      <div class="rv-cnt">${idx+1} / ${total} アイテム</div>
+      <button class="rv-next" onclick="window._rvNext()">
+        ${idx+1 < total ? '次のアイテムへ →' : '結果を見る →'}
+      </button>`;
+
+    spawnParticles(item.color);
+    overlay.classList.remove('hidden');
+  }
+
+  window._rvNext = function() {
+    idx++;
+    if (idx >= drops.length) {
+      overlay.classList.add('hidden');
+      ptcl.innerHTML = '';
+      delete window._rvNext;
+      onDone();
+    } else {
+      showItem();
+    }
+  };
+
+  showItem();
 }
 
 function showComboPop(n) {
