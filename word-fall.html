@@ -6,6 +6,7 @@
 <title>Word Fall — SAKURA KIDS</title>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="game-user.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{width:100%;height:100%;overflow:hidden;background:#06071a;color:#fff;
@@ -230,7 +231,8 @@ html,body{width:100%;height:100%;overflow:hidden;background:#06071a;color:#fff;
   <div class="logo-sub">SAKURA KIDS</div>
   <button class="btn btn-play" onclick="showScreen('levelScreen');if(bgmPref&&!bgmOn)startBGM()">▶ PLAY</button><br>
   <button class="btn btn-ghost" onclick="showScreen('adminScreen');initAdmin()">⚙ 単語管理</button>
-  <div style="margin-top:1.5rem">
+  <div id="wfBadgeWrap" style="margin-top:.8rem;display:flex;gap:.5rem;justify-content:center;flex-wrap:wrap"></div>
+  <div style="margin-top:.8rem">
     <a href="index.html" style="display:inline-block;margin-top:.5rem;color:#fff;font-size:.9rem;
       font-weight:700;text-decoration:none;letter-spacing:.05em;padding:10px 26px;
       background:rgba(255,255,255,.13);border:1.5px solid rgba(255,255,255,.35);border-radius:40px;
@@ -324,6 +326,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#06071a;color:#fff;
   <button class="btn btn-play" style="font-size:1rem;padding:.9rem 2.6rem"
     onclick="startGame(curLevel)">もう一度</button><br>
   <button class="btn btn-ghost" onclick="showScreen('levelScreen')">レベル選択</button>
+  <a href="scores.html" class="btn btn-ghost" style="text-decoration:none">📊 せいせき</a>
   <a href="index.html" class="btn" style="margin-top:.2rem;font-size:.9rem;font-weight:700;color:#fff;
     background:rgba(255,255,255,.13);border:1.5px solid rgba(255,255,255,.35);border-radius:40px;
     text-decoration:none;transition:background .2s,transform .15s"
@@ -1253,6 +1256,12 @@ function endGame(silent) {
     score >= 1000 ? '⭐ Great! よくできました！' :
     score >= 500  ? '👍 Good! がんばりました！' : '💪 Keep going! 練習しよう！';
 
+  // Save to Firebase
+  (async () => {
+    await GameUser.saveScore('word-fall', curLevel, {score, accuracy: acc, words: correct});
+    if (!GameUser.getUsername()) await GameUser.showSavePrompt();
+  })();
+
   showScreen('resultScreen');
 }
 
@@ -1432,6 +1441,20 @@ function onFileSelected(input) {
   };
   reader.readAsText(file, 'UTF-8');
 }
+
+// ─── USER BADGE INIT ─────────────────────────────────────────────────────────
+(function() {
+  const wrap = document.getElementById('wfBadgeWrap');
+  if (!wrap) return;
+  GameUser.renderBadge(wrap);
+  const link = document.createElement('a');
+  link.href = 'scores.html';
+  link.style.cssText = 'background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);' +
+    'color:#aaa;border-radius:30px;padding:.35rem .9rem;font-size:.78rem;font-weight:700;' +
+    'text-decoration:none;display:inline-flex;align-items:center;gap:.35rem;margin:.4rem';
+  link.innerHTML = '📊 せいせき';
+  wrap.appendChild(link);
+})();
 
 // ══════════════════════════════════════════════════════════════
 //  SOUND  (Web Audio API — no external files needed)

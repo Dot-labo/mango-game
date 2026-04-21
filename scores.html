@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>せいせき — SAKURA KIDS</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="game-user.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%;background:#06071a;color:#fff;
+  font-family:'Segoe UI',system-ui,sans-serif;overflow-x:hidden}
+
+/* ── Header ─── */
+#header{display:flex;align-items:center;gap:.8rem;padding:.9rem 1.2rem;
+  background:rgba(0,0,0,.55);backdrop-filter:blur(8px);position:sticky;top:0;z-index:50;
+  border-bottom:1px solid rgba(255,255,255,.05)}
+.page-title{font-size:1.1rem;font-weight:800;flex:1}
+.btn-sm{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);
+  color:#aaa;border-radius:20px;padding:.3rem .85rem;font-size:.76rem;cursor:pointer;
+  font-weight:600;text-decoration:none;transition:all .18s;display:inline-block}
+.btn-sm:hover{background:rgba(255,255,255,.14);color:#fff}
+
+/* ── Tabs ─── */
+#tabs{display:flex;gap:0;background:rgba(255,255,255,.04);
+  border-bottom:1px solid rgba(255,255,255,.06);position:sticky;top:48px;z-index:40}
+.tab{flex:1;padding:.7rem 0;text-align:center;font-size:.82rem;font-weight:700;
+  cursor:pointer;color:#555;border-bottom:2px solid transparent;transition:all .18s}
+.tab.active{color:#a78bfa;border-color:#7c3aed}
+.tab:hover:not(.active){color:#888}
+
+/* ── Content ─── */
+#content{padding:1rem;max-width:680px;margin:0 auto}
+
+/* ── Section ─── */
+.sec-title{font-size:.65rem;color:#444;letter-spacing:.18em;text-transform:uppercase;
+  margin:1.2rem 0 .6rem}
+
+/* ── Stage cards ─── */
+.stage-grid{display:flex;flex-wrap:wrap;gap:.6rem;margin-bottom:.4rem}
+.stage-card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);
+  border-radius:12px;padding:.75rem 1rem;min-width:140px;flex:1;cursor:pointer;
+  transition:all .18s}
+.stage-card:hover{background:rgba(124,58,237,.12);border-color:rgba(124,58,237,.4)}
+.sc-name{font-size:.72rem;color:#666;margin-bottom:.25rem}
+.sc-score{font-size:1.4rem;font-weight:900;color:#fcd34d}
+.sc-meta{font-size:.65rem;color:#444;margin-top:.2rem}
+.sc-plays{font-size:.62rem;color:#333;margin-top:.1rem}
+.no-play{color:#2a2a50;font-size:.78rem;padding:.5rem 0}
+
+/* ── History list ─── */
+.hist-item{display:flex;align-items:center;gap:.7rem;padding:.5rem 0;
+  border-bottom:1px solid rgba(255,255,255,.04)}
+.hist-item:last-child{border-bottom:none}
+.hist-icon{font-size:1.3rem;width:2rem;text-align:center;flex-shrink:0}
+.hist-body{flex:1;min-width:0}
+.hist-name{font-size:.8rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hist-meta{font-size:.65rem;color:#444}
+.hist-score{font-size:1rem;font-weight:900;color:#fcd34d;flex-shrink:0}
+.hist-grade{font-size:.7rem;font-weight:700;margin-left:.3rem}
+
+/* ── Leaderboard ─── */
+.lb-filters{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:.8rem}
+.lb-chip{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);
+  border-radius:20px;padding:.3rem .8rem;font-size:.75rem;cursor:pointer;
+  font-weight:600;color:#777;transition:all .18s}
+.lb-chip.active{background:rgba(124,58,237,.2);border-color:rgba(124,58,237,.6);color:#a78bfa}
+.lb-row{display:flex;align-items:center;gap:.75rem;padding:.55rem .7rem;
+  background:rgba(255,255,255,.03);border-radius:10px;margin-bottom:.35rem;
+  transition:background .15s}
+.lb-row.me{background:rgba(124,58,237,.15);border:1px solid rgba(124,58,237,.3)}
+.lb-rank{font-size:1rem;font-weight:900;min-width:2rem;text-align:center}
+.lb-rank.gold{color:#fcd34d}.lb-rank.silver{color:#94a3b8}.lb-rank.bronze{color:#fb923c}
+.lb-name{flex:1;font-size:.88rem;font-weight:700}
+.lb-score{font-size:1rem;font-weight:900;color:#fcd34d}
+.lb-meta{font-size:.65rem;color:#444;margin-top:.1rem}
+.lb-empty{color:#2a2a50;font-size:.82rem;padding:1rem 0;text-align:center}
+
+/* ── Loading ─── */
+.loading{color:#333;font-size:.82rem;padding:1rem 0;text-align:center;animation:ldPulse 1s ease-in-out infinite}
+@keyframes ldPulse{0%,100%{opacity:.4}50%{opacity:1}}
+
+/* ── Username section ─── */
+#userSection{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);
+  border-radius:12px;padding:.85rem 1rem;margin-bottom:1rem;
+  display:flex;align-items:center;gap:.8rem}
+.user-avatar{font-size:1.8rem}
+.user-info{flex:1}
+.user-name{font-size:1rem;font-weight:800}
+.user-sub{font-size:.67rem;color:#444;margin-top:.1rem}
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div class="page-title">📊 せいせき</div>
+  <a href="index.html" class="btn-sm">🏠 ホーム</a>
+</div>
+
+<div id="tabs">
+  <div class="tab active" id="tabPersonal" onclick="switchTab('personal')">👤 じぶんのせいせき</div>
+  <div class="tab" id="tabRanking"  onclick="switchTab('ranking')">🏆 ランキング</div>
+</div>
+
+<div id="content">
+  <!-- ═══ PERSONAL TAB ═══════════════════════════════════════ -->
+  <div id="panelPersonal">
+    <div id="userSection">
+      <div class="user-avatar">👤</div>
+      <div class="user-info">
+        <div class="user-name" id="displayName">ゲスト</div>
+        <div class="user-sub" id="displaySub">名前を設定するとスコアが記録されます</div>
+      </div>
+      <button class="btn-sm" id="nameBtn">名前を変更</button>
+    </div>
+
+    <div id="personalContent"><div class="loading">読み込み中…</div></div>
+  </div>
+
+  <!-- ═══ RANKING TAB ══════════════════════════════════════════ -->
+  <div id="panelRanking" style="display:none">
+    <div class="sec-title" style="margin-top:.4rem">ゲーム</div>
+    <div class="lb-filters" id="gameFilter">
+      <div class="lb-chip active" data-game="type-quest" onclick="setGame(this,'type-quest')">⌨️ Type Quest</div>
+      <div class="lb-chip"       data-game="word-fall"  onclick="setGame(this,'word-fall')">⬇ Word Fall</div>
+    </div>
+    <div class="sec-title">ステージ</div>
+    <div class="lb-filters" id="stageFilter"></div>
+    <div id="lbContent"><div class="lb-empty">ステージを選んでください</div></div>
+  </div>
+</div>
+
+<script>
+// ─── Stage meta ──────────────────────────────────────────────────────────────
+const GAME_META = {
+  'type-quest': {
+    name: '⌨️ Type Quest',
+    stages: [
+      {id:'alpha',    name:'Alphabet & Sound', icon:'🔤'},
+      {id:'vocab',    name:'Vocabulary Build',  icon:'📚'},
+      {id:'sentence', name:'Sentence Master',   icon:'✍️'},
+      {id:'romaji',   name:'はじめての入力',    icon:'⌨️'},
+      {id:'itkw',     name:'IT キーワード',     icon:'💡'},
+      {id:'python',   name:'Python Mastery',    icon:'🐍'},
+    ]
+  },
+  'word-fall': {
+    name: '⬇ Word Fall',
+    stages: [
+      {id:'4',    name:'英検4級', icon:'⬇'},
+      {id:'3',    name:'英検3級', icon:'⬇'},
+      {id:'pre2', name:'準2級',   icon:'⬇'},
+      {id:'2',    name:'2級',     icon:'⬇'},
+    ]
+  },
+};
+
+const ALL_STAGES = Object.entries(GAME_META).flatMap(([game, gm]) =>
+  gm.stages.map(s => ({...s, game, gameName: gm.name}))
+);
+
+const GRADE_COLOR = {S:'#fcd34d', A:'#4ade80', B:'#60a5fa', C:'#fb923c', D:'#f87171'};
+
+// ─── Tab switching ────────────────────────────────────────────────────────────
+let curTab = 'personal';
+function switchTab(tab) {
+  curTab = tab;
+  document.getElementById('panelPersonal').style.display = tab === 'personal' ? '' : 'none';
+  document.getElementById('panelRanking').style.display  = tab === 'ranking'  ? '' : 'none';
+  document.getElementById('tabPersonal').classList.toggle('active', tab === 'personal');
+  document.getElementById('tabRanking').classList.toggle('active',  tab === 'ranking');
+  if (tab === 'ranking' && !rankingInited) initRanking();
+}
+
+// ─── Personal tab ─────────────────────────────────────────────────────────────
+async function loadPersonal() {
+  const username = GameUser.getUsername();
+  const nameEl  = document.getElementById('displayName');
+  const subEl   = document.getElementById('displaySub');
+
+  if (username) {
+    nameEl.textContent = username;
+    subEl.textContent  = 'スコアを記録中';
+  } else {
+    nameEl.textContent = 'ゲスト';
+    subEl.textContent  = '名前を設定するとスコアが記録されます';
+  }
+
+  const box = document.getElementById('personalContent');
+  box.innerHTML = '<div class="loading">読み込み中…</div>';
+
+  if (!username) {
+    box.innerHTML = `<div style="text-align:center;padding:2rem 0;color:#2a2a50">
+      <div style="font-size:2rem;margin-bottom:.5rem">👤</div>
+      <div style="font-size:.9rem;margin-bottom:.8rem">名前を設定してスコアを記録しよう！</div>
+      <button onclick="openNameModal()" style="background:linear-gradient(135deg,#7c3aed,#4f46e5);
+        border:none;color:#fff;border-radius:30px;padding:.55rem 1.5rem;font-size:.9rem;
+        cursor:pointer;font-weight:700">名前を設定する</button>
+    </div>`;
+    return;
+  }
+
+  const scores = await GameUser.getMyScores(username);
+  if (!scores.length) {
+    box.innerHTML = `<div style="text-align:center;padding:2rem 0;color:#2a2a50">
+      <div style="font-size:1.8rem;margin-bottom:.4rem">🎮</div>
+      <div style="font-size:.85rem">まだプレイ記録がありません。<br>ゲームをプレイしよう！</div>
+    </div>`;
+    return;
+  }
+
+  // Group by game+stage, find bests
+  const grouped = {};
+  scores.forEach(s => {
+    const key = `${s.game}|${s.stage}`;
+    if (!grouped[key]) grouped[key] = {best: null, plays: []};
+    grouped[key].plays.push(s);
+    if (!grouped[key].best || grouped[key].best.score < s.score) grouped[key].best = s;
+  });
+
+  let html = '';
+
+  // Sections per game
+  for (const [gameId, gm] of Object.entries(GAME_META)) {
+    const stagesWithData = gm.stages.filter(st => grouped[`${gameId}|${st.id}`]);
+    if (!stagesWithData.length) continue;
+
+    html += `<div class="sec-title">${gm.name}</div><div class="stage-grid">`;
+    stagesWithData.forEach(st => {
+      const {best, plays} = grouped[`${gameId}|${st.id}`];
+      html += `<div class="stage-card">
+        <div class="sc-name">${st.icon} ${st.name}</div>
+        <div class="sc-score">${best.score.toLocaleString()}<span style="font-size:.7rem;color:#666;font-weight:400"> 点</span></div>
+        <div class="sc-meta">
+          ${best.wpm ? best.wpm + ' WPM　' : ''}
+          ${best.accuracy ? best.accuracy + '% 正確' : ''}
+          ${best.grade ? `　<span style="color:${GRADE_COLOR[best.grade]||'#fff'}">Grade ${best.grade}</span>` : ''}
+        </div>
+        <div class="sc-plays">${plays.length} 回プレイ</div>
+      </div>`;
+    });
+    html += '</div>';
+  }
+
+  // Recent 15 plays
+  html += `<div class="sec-title">最近のプレイ</div><div>`;
+  scores.slice(0, 15).forEach(s => {
+    const meta = ALL_STAGES.find(x => x.game === s.game && x.id === s.stage);
+    const icon  = meta?.icon || '🎮';
+    const sname = meta ? `${meta.gameName} / ${meta.name}` : `${s.game} / ${s.stage}`;
+    const gradeHtml = s.grade ? `<span class="hist-grade" style="color:${GRADE_COLOR[s.grade]||'#fff'}">Grade ${s.grade}</span>` : '';
+    html += `<div class="hist-item">
+      <div class="hist-icon">${icon}</div>
+      <div class="hist-body">
+        <div class="hist-name">${sname}</div>
+        <div class="hist-meta">
+          ${s.wpm ? s.wpm + ' WPM　' : ''}
+          ${s.accuracy ? s.accuracy + '% 正確　' : ''}
+          ${s.dateStr || ''}
+        </div>
+      </div>
+      <div>
+        <div class="hist-score">${(s.score||0).toLocaleString()}</div>
+        ${gradeHtml}
+      </div>
+    </div>`;
+  });
+  html += '</div>';
+
+  box.innerHTML = html;
+}
+
+// ─── Ranking tab ──────────────────────────────────────────────────────────────
+let rankingInited = false;
+let curGame  = 'type-quest';
+let curStage = '';
+
+function initRanking() {
+  rankingInited = true;
+  buildStageFilter('type-quest');
+}
+
+function setGame(el, game) {
+  document.querySelectorAll('#gameFilter .lb-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  curGame = game;
+  curStage = '';
+  buildStageFilter(game);
+  document.getElementById('lbContent').innerHTML = '<div class="lb-empty">ステージを選んでください</div>';
+}
+
+function buildStageFilter(game) {
+  const gm = GAME_META[game];
+  const flt = document.getElementById('stageFilter');
+  flt.innerHTML = '';
+  gm.stages.forEach(st => {
+    const chip = document.createElement('div');
+    chip.className = 'lb-chip';
+    chip.textContent = `${st.icon} ${st.name}`;
+    chip.onclick = () => {
+      document.querySelectorAll('#stageFilter .lb-chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      curStage = st.id;
+      loadLeaderboard(game, st.id);
+    };
+    flt.appendChild(chip);
+  });
+}
+
+async function loadLeaderboard(game, stage) {
+  const box = document.getElementById('lbContent');
+  box.innerHTML = '<div class="loading">読み込み中…</div>';
+
+  const rows = await GameUser.getLeaderboard(game, stage, 20);
+  const me   = GameUser.getUsername();
+
+  if (!rows.length) {
+    box.innerHTML = '<div class="lb-empty">まだ記録がありません。最初の挑戦者になろう！</div>';
+    return;
+  }
+
+  const rankEmoji = ['🥇','🥈','🥉'];
+  const rankColor = ['gold','silver','bronze'];
+
+  let html = '';
+  rows.forEach((r, i) => {
+    const isMe = me && r.username === me;
+    html += `<div class="lb-row${isMe ? ' me' : ''}">
+      <div class="lb-rank ${rankColor[i]||''}">${rankEmoji[i] || (i+1)}</div>
+      <div class="lb-name">${r.username}${isMe ? ' <span style="font-size:.62rem;color:#a78bfa">（あなた）</span>' : ''}</div>
+      <div style="text-align:right">
+        <div class="lb-score">${(r.score||0).toLocaleString()}</div>
+        <div class="lb-meta">
+          ${r.wpm ? r.wpm + ' WPM ' : ''}
+          ${r.accuracy ? r.accuracy + '% ' : ''}
+          ${r.grade ? 'Grade ' + r.grade : ''}
+        </div>
+      </div>
+    </div>`;
+  });
+
+  // My rank if outside top 20
+  const myRankIdx = rows.findIndex(r => r.username === me);
+  if (me && myRankIdx === -1) {
+    const allRows = await GameUser.getLeaderboard(game, stage, 999);
+    const myIdx   = allRows.findIndex(r => r.username === me);
+    if (myIdx !== -1) {
+      const r = allRows[myIdx];
+      html += `<div style="text-align:center;font-size:.7rem;color:#444;padding:.4rem">…</div>
+        <div class="lb-row me">
+          <div class="lb-rank">${myIdx+1}</div>
+          <div class="lb-name">${r.username} <span style="font-size:.62rem;color:#a78bfa">（あなた）</span></div>
+          <div style="text-align:right">
+            <div class="lb-score">${(r.score||0).toLocaleString()}</div>
+          </div>
+        </div>`;
+    }
+  }
+
+  box.innerHTML = html;
+}
+
+// ─── Name modal ───────────────────────────────────────────────────────────────
+async function openNameModal() {
+  await GameUser.showNameModal({ canSkip: true });
+  loadPersonal();
+}
+
+document.getElementById('nameBtn').onclick = openNameModal;
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+loadPersonal();
+</script>
+</body>
+</html>
