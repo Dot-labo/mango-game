@@ -256,9 +256,9 @@ const QUIZZES = [
     emoji: '🐧',
   },
   {
-    shadowImg: P + SS + '153431.png',   // きれいな黒シルエット
-    cardImg:   P + SS + '153029.png',   // ひっかけ用カード
-    answerImg: P + SS + '153418.png',   // 大きな正解イラスト
+    shadowImg:  P + SS + '153431.png',  // きれいな黒シルエット
+    answerImg:  P + SS + '153418.png',  // 寝ているゾウのイラスト
+    skipTrick:  true,                   // ひっかけなし：影→正解に直接
     emoji: '🐘',
   },
   {
@@ -366,8 +366,13 @@ function render() {
 // NAVIGATION
 // =================================================================
 function advance() {
-  if (phase < 2) {
-    phase++;
+  const q = QUIZZES[qIdx];
+  if (phase === 0) {
+    // skip trick phase if flagged
+    phase = q.skipTrick ? 2 : 1;
+    render();
+  } else if (phase === 1) {
+    phase = 2;
     render();
   } else if (qIdx < QUIZZES.length - 1) {
     qIdx++;
@@ -379,8 +384,12 @@ function advance() {
 }
 
 function back() {
-  if (phase > 0) {
-    phase--;
+  const q = QUIZZES[qIdx];
+  if (phase === 2) {
+    phase = q.skipTrick ? 0 : 1;
+    render();
+  } else if (phase === 1) {
+    phase = 0;
     render();
   } else if (qIdx > 0) {
     qIdx--;
