@@ -164,6 +164,41 @@ kbd {
   color: #333;
 }
 
+/* ── TOUCH ZONES (mobile) ── */
+#touchBack, #touchNext {
+  display: none;
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 50%;
+  z-index: 20;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+#touchBack  { left: 0; }
+#touchNext  { right: 0; }
+
+/* tap flash feedback */
+#touchBack.flash  { background: rgba(255,255,255,.06); }
+#touchNext.flash  { background: rgba(255,255,255,.06); }
+
+/* show arrow hints on mobile */
+#tapHintLeft, #tapHintRight {
+  display: none;
+  position: absolute;
+  bottom: 52px;
+  font-size: .75rem;
+  color: #2a2a2a;
+  pointer-events: none;
+}
+#tapHintLeft  { left: 16px; }
+#tapHintRight { right: 16px; }
+
+@media (pointer: coarse) {
+  #touchBack, #touchNext { display: block; }
+  #tapHintLeft, #tapHintRight { display: block; }
+  .key-hint { display: none; }
+}
+
 /* ── END SCREEN ── */
 #endScreen {
   display: none; flex-direction: column;
@@ -220,6 +255,11 @@ kbd {
   <div id="qCounter"></div>
   <div id="slideArea"></div>
   <div id="navHint"></div>
+  <!-- touch zones -->
+  <div id="touchBack"></div>
+  <div id="touchNext"></div>
+  <div id="tapHintLeft">◀ 戻る</div>
+  <div id="tapHintRight">次へ ▶</div>
 </div>
 
 <!-- ── END ── -->
@@ -457,6 +497,28 @@ document.addEventListener('keydown', e => {
     case 't': case 'T':
       skipTrick(); break;
   }
+});
+
+// =================================================================
+// TOUCH / TAP
+// =================================================================
+function flashZone(el) {
+  el.classList.add('flash');
+  setTimeout(() => el.classList.remove('flash'), 120);
+}
+
+document.getElementById('touchNext').addEventListener('click', () => {
+  flashZone(document.getElementById('touchNext'));
+  advance();
+});
+document.getElementById('touchBack').addEventListener('click', () => {
+  flashZone(document.getElementById('touchBack'));
+  back();
+});
+
+// Title screen: tap anywhere to start
+document.getElementById('titleScreen').addEventListener('click', e => {
+  if (e.target.id !== 'startBtn') startQuiz();
 });
 </script>
 </body>
